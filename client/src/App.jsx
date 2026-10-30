@@ -157,24 +157,24 @@ const NAV_ROLES = {
 };
 
 const TAB_TITLES = {
-  saas_schools: '🏢 Établissements (SaaS)',
-  dashboard: 'Tableau de bord',
-  eleves: 'Élèves',
-  preinscriptions: 'Inscriptions en ligne',
-  classes: 'Classes',
-  matieres: 'Matières',
-  salles: 'Salles',
-  emplois: 'Emploi du temps',
-  notes: 'Notes',
-  bulletins: 'Bulletins scolaires',
-  absences: 'Absences',
-  finances: 'Finances & Impayés',
-  paiements: 'Paiements',
-  devoirs: 'Devoirs à domicile',
-  annonces: 'Annonces officielles',
-  messages: 'Messagerie',
-  users: 'Comptes utilisateurs',
-  journal: 'Journal d’audit'
+  saas_schools: '🏢 Écoles SaaS',
+  dashboard: '📊 Tableau de bord',
+  eleves: '🎓 Élèves',
+  preinscriptions: '📝 Inscriptions en ligne',
+  classes: '🏛️ Classes',
+  matieres: '📚 Matières',
+  salles: '🚪 Salles',
+  emplois: '📅 Emploi du temps',
+  notes: '⭐ Notes & Évaluations',
+  bulletins: '📜 Bulletins scolaires',
+  absences: '⏱️ Absences & Retards',
+  finances: '💰 Finances & Impayés',
+  paiements: '💳 Paiements & Reçus',
+  devoirs: '📖 Devoirs à domicile',
+  annonces: '📢 Annonces officielles',
+  messages: '💬 Messagerie interne',
+  users: '👥 Comptes utilisateurs',
+  journal: '📋 Journal d’audit'
 };
 
 function formatLabel(entityKey, item) {
@@ -220,49 +220,54 @@ function Dashboard({ user, setTab }) {
 
   return (
     <div>
-      <div className="view-header">
-        <div>
-          <h2>Bienvenue, {user.nom}</h2>
-          <p style={{ color: 'var(--text-muted)', fontSize: '13.5px' }}>
-            Année scolaire 2026-2027 · École Primaire d'Excellence
+      {/* Executive Hero Banner */}
+      <div className="dashboard-hero">
+        <div className="hero-content">
+          <div className="hero-badge">🎓 Année Scolaire 2026-2027</div>
+          <h2>Bonjour, {user.nom} 👋</h2>
+          <p>
+            {user.schoolName
+              ? `${user.schoolName} · Portail officiel de gestion académique et administrative`
+              : 'Système Central Multi-Établissements SaaS'}
           </p>
         </div>
-        <div className="view-actions">
-          <span className={`badge badge-${user.role === 'admin' ? 'red' : user.role === 'enseignant' ? 'blue' : 'green'}`}>
-            Compte {user.role.toUpperCase()}
-          </span>
+        <div className="hero-meta">
+          <div className="hero-role-pill">
+            <span className="live-indicator"></span>
+            <span>Compte {user.role.toUpperCase()}</span>
+          </div>
         </div>
       </div>
 
       {/* KPI Cards for Admin and Accountant */}
-      {['admin', 'comptable'].includes(user.role) && stats && (
+      {['admin', 'comptable', 'superadmin'].includes(user.role) && stats && (
         <div className="kpi-grid">
           <div className="kpi-card">
             <div className="kpi-icon blue">🎓</div>
             <div>
               <div className="kpi-title">Total Élèves</div>
-              <div className="kpi-value">{stats.nbEleves}</div>
+              <div className="kpi-value">{stats.nbEleves ?? stats.totalEleves ?? '—'}</div>
             </div>
           </div>
           <div className="kpi-card">
             <div className="kpi-icon green">💵</div>
             <div>
               <div className="kpi-title">Total Encaissé</div>
-              <div className="kpi-value">{stats.totalRecu.toLocaleString()} TND</div>
+              <div className="kpi-value">{(stats.totalRecu ?? 0).toLocaleString()} TND</div>
             </div>
           </div>
           <div className="kpi-card">
             <div className="kpi-icon amber">⚠️</div>
             <div>
               <div className="kpi-title">Restant à Recouvrer</div>
-              <div className="kpi-value">{stats.totalRestant.toLocaleString()} TND</div>
+              <div className="kpi-value">{(stats.totalRestant ?? 0).toLocaleString()} TND</div>
             </div>
           </div>
           <div className="kpi-card">
             <div className="kpi-icon purple">📊</div>
             <div>
               <div className="kpi-title">Taux de Recouvrement</div>
-              <div className="kpi-value">{stats.tauxRecouvrement}%</div>
+              <div className="kpi-value">{stats.tauxRecouvrement ?? 0}%</div>
             </div>
           </div>
         </div>
@@ -300,44 +305,196 @@ function Dashboard({ user, setTab }) {
             <h3>⚡ Accès Rapides</h3>
           </div>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+            {user.role === 'superadmin' && (
+              <>
+                <button className="quick-action-card" onClick={() => setTab('saas_schools')}>
+                  <div className="action-icon">🏢</div>
+                  <div>
+                    <span className="action-title">Écoles SaaS</span>
+                    <span className="action-desc">Gestion des établissements</span>
+                  </div>
+                </button>
+                <button className="quick-action-card" onClick={() => setTab('users')}>
+                  <div className="action-icon">👥</div>
+                  <div>
+                    <span className="action-title">Utilisateurs</span>
+                    <span className="action-desc">Comptes et accès</span>
+                  </div>
+                </button>
+                <button className="quick-action-card" onClick={() => setTab('finances')}>
+                  <div className="action-icon">💰</div>
+                  <div>
+                    <span className="action-title">Finances</span>
+                    <span className="action-desc">Vue financière globale</span>
+                  </div>
+                </button>
+                <button className="quick-action-card" onClick={() => setTab('journal')}>
+                  <div className="action-icon">📋</div>
+                  <div>
+                    <span className="action-title">Audit SaaS</span>
+                    <span className="action-desc">Journal de sécurité</span>
+                  </div>
+                </button>
+              </>
+            )}
             {user.role === 'admin' && (
               <>
-                <button className="btn" onClick={() => setTab('eleves')}>🎓 Gestion des Élèves</button>
-                <button className="btn" onClick={() => setTab('emplois')}>📅 Emploi du temps</button>
-                <button className="btn" onClick={() => setTab('finances')}>💳 Finances & Impayés</button>
-                <button className="btn" onClick={() => setTab('users')}>👥 Comptes Utilisateurs</button>
+                <button className="quick-action-card" onClick={() => setTab('eleves')}>
+                  <div className="action-icon">🎓</div>
+                  <div>
+                    <span className="action-title">Élèves</span>
+                    <span className="action-desc">Inscriptions & effectifs</span>
+                  </div>
+                </button>
+                <button className="quick-action-card" onClick={() => setTab('emplois')}>
+                  <div className="action-icon">📅</div>
+                  <div>
+                    <span className="action-title">Emploi du temps</span>
+                    <span className="action-desc">Planning hebdomadaire</span>
+                  </div>
+                </button>
+                <button className="quick-action-card" onClick={() => setTab('finances')}>
+                  <div className="action-icon">💳</div>
+                  <div>
+                    <span className="action-title">Finances</span>
+                    <span className="action-desc">Frais et recouvrement</span>
+                  </div>
+                </button>
+                <button className="quick-action-card" onClick={() => setTab('users')}>
+                  <div className="action-icon">👥</div>
+                  <div>
+                    <span className="action-title">Utilisateurs</span>
+                    <span className="action-desc">Comptes & rôles</span>
+                  </div>
+                </button>
               </>
             )}
             {user.role === 'enseignant' && (
               <>
-                <button className="btn" onClick={() => setTab('notes')}>📝 Saisie des Notes</button>
-                <button className="btn" onClick={() => setTab('devoirs')}>📖 Devoirs & Dépôts</button>
-                <button className="btn" onClick={() => setTab('emplois')}>📅 Mon Emploi du temps</button>
-                <button className="btn" onClick={() => setTab('messages')}>✉️ Contacter Parents</button>
+                <button className="quick-action-card" onClick={() => setTab('notes')}>
+                  <div className="action-icon">⭐</div>
+                  <div>
+                    <span className="action-title">Notes</span>
+                    <span className="action-desc">Saisie des évaluations</span>
+                  </div>
+                </button>
+                <button className="quick-action-card" onClick={() => setTab('devoirs')}>
+                  <div className="action-icon">📖</div>
+                  <div>
+                    <span className="action-title">Devoirs</span>
+                    <span className="action-desc">Travaux & rendus</span>
+                  </div>
+                </button>
+                <button className="quick-action-card" onClick={() => setTab('emplois')}>
+                  <div className="action-icon">📅</div>
+                  <div>
+                    <span className="action-title">Mon Emploi</span>
+                    <span className="action-desc">Séances de la semaine</span>
+                  </div>
+                </button>
+                <button className="quick-action-card" onClick={() => setTab('messages')}>
+                  <div className="action-icon">💬</div>
+                  <div>
+                    <span className="action-title">Parents</span>
+                    <span className="action-desc">Messagerie directe</span>
+                  </div>
+                </button>
               </>
             )}
             {user.role === 'parent' && (
               <>
-                <button className="btn" onClick={() => setTab('bulletins')}>📜 Consulter Bulletins</button>
-                <button className="btn" onClick={() => setTab('devoirs')}>📖 Devoirs des enfants</button>
-                <button className="btn" onClick={() => setTab('absences')}>⏱️ Justifier une Absence</button>
-                <button className="btn" onClick={() => setTab('paiements')}>💳 Paiements & Reçus</button>
+                <button className="quick-action-card" onClick={() => setTab('bulletins')}>
+                  <div className="action-icon">📜</div>
+                  <div>
+                    <span className="action-title">Bulletins</span>
+                    <span className="action-desc">Relevés trimestriels</span>
+                  </div>
+                </button>
+                <button className="quick-action-card" onClick={() => setTab('devoirs')}>
+                  <div className="action-icon">📖</div>
+                  <div>
+                    <span className="action-title">Devoirs</span>
+                    <span className="action-desc">Travaux de mes enfants</span>
+                  </div>
+                </button>
+                <button className="quick-action-card" onClick={() => setTab('absences')}>
+                  <div className="action-icon">⏱️</div>
+                  <div>
+                    <span className="action-title">Absences</span>
+                    <span className="action-desc">Suivi et justificatifs</span>
+                  </div>
+                </button>
+                <button className="quick-action-card" onClick={() => setTab('paiements')}>
+                  <div className="action-icon">💳</div>
+                  <div>
+                    <span className="action-title">Paiements</span>
+                    <span className="action-desc">Reçus et règlements</span>
+                  </div>
+                </button>
               </>
             )}
             {user.role === 'eleve' && (
               <>
-                <button className="btn" onClick={() => setTab('devoirs')}>📖 Mes Devoirs à Rendre</button>
-                <button className="btn" onClick={() => setTab('emplois')}>📅 Mon Emploi du temps</button>
-                <button className="btn" onClick={() => setTab('notes')}>📝 Mes Notes</button>
-                <button className="btn" onClick={() => setTab('messages')}>✉️ Messagerie</button>
+                <button className="quick-action-card" onClick={() => setTab('devoirs')}>
+                  <div className="action-icon">📖</div>
+                  <div>
+                    <span className="action-title">Devoirs</span>
+                    <span className="action-desc">Travaux à rendre</span>
+                  </div>
+                </button>
+                <button className="quick-action-card" onClick={() => setTab('emplois')}>
+                  <div className="action-icon">📅</div>
+                  <div>
+                    <span className="action-title">Planning</span>
+                    <span className="action-desc">Mon emploi du temps</span>
+                  </div>
+                </button>
+                <button className="quick-action-card" onClick={() => setTab('notes')}>
+                  <div className="action-icon">⭐</div>
+                  <div>
+                    <span className="action-title">Mes Notes</span>
+                    <span className="action-desc">Évaluations et moyennes</span>
+                  </div>
+                </button>
+                <button className="quick-action-card" onClick={() => setTab('messages')}>
+                  <div className="action-icon">💬</div>
+                  <div>
+                    <span className="action-title">Messages</span>
+                    <span className="action-desc">Discussions enseignants</span>
+                  </div>
+                </button>
               </>
             )}
             {user.role === 'comptable' && (
               <>
-                <button className="btn" onClick={() => setTab('paiements')}>💳 Encaisser un Paiement</button>
-                <button className="btn" onClick={() => setTab('finances')}>⚠️ Relances Impayés</button>
-                <button className="btn" onClick={() => setTab('preinscriptions')}>📋 Dossiers Inscriptions</button>
-                <button className="btn" onClick={() => setTab('eleves')}>🎓 Liste des Élèves</button>
+                <button className="quick-action-card" onClick={() => setTab('paiements')}>
+                  <div className="action-icon">💳</div>
+                  <div>
+                    <span className="action-title">Paiements</span>
+                    <span className="action-desc">Encaisser & reçus</span>
+                  </div>
+                </button>
+                <button className="quick-action-card" onClick={() => setTab('finances')}>
+                  <div className="action-icon">⚠️</div>
+                  <div>
+                    <span className="action-title">Impayés</span>
+                    <span className="action-desc">Relances & échéances</span>
+                  </div>
+                </button>
+                <button className="quick-action-card" onClick={() => setTab('preinscriptions')}>
+                  <div className="action-icon">📋</div>
+                  <div>
+                    <span className="action-title">Inscriptions</span>
+                    <span className="action-desc">Dossiers en attente</span>
+                  </div>
+                </button>
+                <button className="quick-action-card" onClick={() => setTab('eleves')}>
+                  <div className="action-icon">🎓</div>
+                  <div>
+                    <span className="action-title">Élèves</span>
+                    <span className="action-desc">Fiches scolaires</span>
+                  </div>
+                </button>
               </>
             )}
           </div>
@@ -2588,11 +2745,16 @@ export default function App() {
           </button>
 
           <div className="user-badge">
-            <span>{user.nom}</span>
-            <span className={`role-tag ${user.role}`}>{user.role}</span>
+            <span className="user-avatar">{user.nom?.charAt(0)?.toUpperCase() || 'U'}</span>
+            <div className="user-meta">
+              <span>{user.nom}</span>
+              <span className={`role-tag ${user.role}`}>{user.role}</span>
+            </div>
           </div>
 
-          <button className="btn-sm btn-danger" onClick={handleLogout}>Quitter</button>
+          <button className="btn-logout" onClick={handleLogout} title="Se déconnecter">
+            🚪 Déconnexion
+          </button>
         </div>
       </header>
 
