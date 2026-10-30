@@ -1220,6 +1220,25 @@ if (fs.existsSync(clientDist)) {
 try {
   const client = await pool.connect();
   const { rows } = await client.query('SELECT NOW()');
+  /* Auto-init DB si neuve (déploiement Render / Cloud) */
+  try {
+    const tableCheck = await client.query("SELECT to_regclass('public.users') AS exists");
+    if (!tableCheck.rows[0].exists) {
+      console.log("Base vide détectée, initialisation automatique...");
+      const schemaPath = path.resolve(__dirname, '../database/schema.sql');
+      if (fs.existsSync(schemaPath)) {
+        await client.query(fs.readFileSync(schemaPath, 'utf8'));
+        console.log("✓ Schéma PostgreSQL créé.");
+      }
+      const seedPath = path.resolve(__dirname, '../database/seed.sql');
+      if (fs.existsSync(seedPath)) {
+        await client.query(fs.readFileSync(seedPath, 'utf8'));
+        console.log("✓ Données de test insérées.");
+      }
+    }
+  } catch (initErr) {
+    console.warn("Note initialisation DB :", initErr.message);
+  }
   client.release();
   console.log(`PostgreSQL connecté avec succès (${rows[0].now})`);
   app.listen(PORT, () => console.log(`API prête sur le port ${PORT} [Mode: ${NODE_ENV}] [DB: PostgreSQL]`));

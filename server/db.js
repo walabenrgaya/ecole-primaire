@@ -3,8 +3,12 @@
 // =====================================================================
 import pg from 'pg';
 
+const connectionString = process.env.DATABASE_URL || 'postgresql://postgres:postgres@localhost:5432/ecole';
+const isProduction = process.env.NODE_ENV === 'production' || connectionString.includes('render.com') || connectionString.includes('sslmode=require');
+
 const pool = new pg.Pool({
-  connectionString: process.env.DATABASE_URL || 'postgresql://postgres:postgres@localhost:5432/ecole'
+  connectionString,
+  ssl: isProduction ? { rejectUnauthorized: false } : false
 });
 
 pool.on('error', (err) => {

@@ -28,6 +28,6 @@ services:
 databases:
   - name: ecole-postgres
     databaseName: ecole
-    user: postgres
+    user: ecole_user
     plan: free
     region: frankfurt
