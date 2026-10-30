@@ -3,14 +3,14 @@
 -- =====================================================================
 
 -- 1. Utilisateurs
--- Mot de passe par défaut : Admin123! / Prof123! / Parent123! / Eleve123! / Comptable123!
+-- Mots de passe valides : Admin123! / Prof123! / Parent123! / Eleve123! / Comptable123!
 INSERT INTO users (id, nom, email, hash, role, telephone) VALUES
-(1, 'Direction Générale (M. Hassen)', 'admin@ecole.tn', '$2a$12$e6/8cTqL8J55GjA1Yx.m7OF8r1Y/CekPzR9r0L/G/rQn2x7zUjCee', 'admin', '+216 73 000 111'),
-(2, 'M. Sami Ben Salem', 'prof.francais@ecole.tn', '$2a$12$e6/8cTqL8J55GjA1Yx.m7OF8r1Y/CekPzR9r0L/G/rQn2x7zUjCee', 'enseignant', '+216 98 123 456'),
-(3, 'Mme Leila Karray', 'prof.maths@ecole.tn', '$2a$12$e6/8cTqL8J55GjA1Yx.m7OF8r1Y/CekPzR9r0L/G/rQn2x7zUjCee', 'enseignant', '+216 97 654 321'),
-(4, 'M. Karim Mansour (Secrétariat)', 'comptable@ecole.tn', '$2a$12$e6/8cTqL8J55GjA1Yx.m7OF8r1Y/CekPzR9r0L/G/rQn2x7zUjCee', 'comptable', '+216 73 222 333'),
-(5, 'Mme Sonia Ben Ali', 'parent.benali@ecole.tn', '$2a$12$e6/8cTqL8J55GjA1Yx.m7OF8r1Y/CekPzR9r0L/G/rQn2x7zUjCee', 'parent', '+216 55 444 333'),
-(6, 'Yassine Ben Ali', 'eleve.yassine@ecole.tn', '$2a$12$e6/8cTqL8J55GjA1Yx.m7OF8r1Y/CekPzR9r0L/G/rQn2x7zUjCee', 'eleve', NULL);
+(1, 'Direction Générale (M. Hassen)', 'admin@ecole.tn', '$2a$10$9b.lwTbE1fMiKRN.2SbvoeEPSUM8RQCz1sdhYZiWGMbT.z9j1dnou', 'admin', '+216 73 000 111'),
+(2, 'M. Sami Ben Salem', 'prof.francais@ecole.tn', '$2a$10$V2JhKtqYqehS23aY4MvGTurGsv.wsWZP8w6Hh4zw9IYxFm332NR7C', 'enseignant', '+216 98 123 456'),
+(3, 'Mme Leila Karray', 'prof.maths@ecole.tn', '$2a$10$V2JhKtqYqehS23aY4MvGTurGsv.wsWZP8w6Hh4zw9IYxFm332NR7C', 'enseignant', '+216 97 654 321'),
+(4, 'M. Karim Mansour (Secrétariat)', 'comptable@ecole.tn', '$2a$10$M2Uja4BkDQwWjcnudpjqMe.DEwdBZmiqCTYZU5wz/NaC.V68veIlq', 'comptable', '+216 73 222 333'),
+(5, 'Mme Sonia Ben Ali', 'parent.benali@ecole.tn', '$2a$10$yNICYMXeEuxWGHtY6MhDAuWc1j1fYYCz0nf9KPtEMWFee2eQYq18u', 'parent', '+216 55 444 333'),
+(6, 'Yassine Ben Ali', 'eleve.yassine@ecole.tn', '$2a$10$kNqA5Q61oP0hlnTqswox7eyz7DikfFkXfDtYPjV9TtqkaJJNSHDjq', 'eleve', NULL);
 
 SELECT setval('users_id_seq', 10);
 

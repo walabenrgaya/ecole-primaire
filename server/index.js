@@ -153,9 +153,12 @@ app.post('/api/upload', auth, upload.single('file'), (req, res) => {
 
 /* --- Login & Me --- */
 app.post('/api/auth/login', wrap(async (q, s) => {
-  const email = String(q.body.email || '').trim().toLowerCase();
+  const identifier = String(q.body.email || '').trim().toLowerCase();
   const password = String(q.body.password || '');
-  const { rows } = await pool.query('SELECT * FROM users WHERE email = $1', [email]);
+  const { rows } = await pool.query(
+    'SELECT * FROM users WHERE LOWER(email) = $1 OR LOWER(email) = $1 || \'@ecole.tn\' LIMIT 1',
+    [identifier]
+  );
   const u = rows[0];
   if (!u || !(await bcrypt.compare(password, u.hash))) {
     return err(s, 401, 'Identifiants invalides');
@@ -1234,6 +1237,20 @@ try {
       if (fs.existsSync(seedPath)) {
         await client.query(fs.readFileSync(seedPath, 'utf8'));
         console.log("✓ Données de test insérées.");
+      }
+    } else {
+      // Vérifier et réparer les mots de passe si l'ancien hash placeholder est présent
+      const adminRow = await client.query("SELECT hash FROM users WHERE email = 'admin@ecole.tn'");
+      if (adminRow.rows.length > 0 && adminRow.rows[0].hash.includes('$2a$12$e6/8cTqL8J55GjA1Yx')) {
+        console.log("Correction automatique des mots de passe des comptes de test...");
+        await client.query(`
+          UPDATE users SET hash = '$2a$10$9b.lwTbE1fMiKRN.2SbvoeEPSUM8RQCz1sdhYZiWGMbT.z9j1dnou' WHERE email = 'admin@ecole.tn';
+          UPDATE users SET hash = '$2a$10$V2JhKtqYqehS23aY4MvGTurGsv.wsWZP8w6Hh4zw9IYxFm332NR7C' WHERE role = 'enseignant';
+          UPDATE users SET hash = '$2a$10$M2Uja4BkDQwWjcnudpjqMe.DEwdBZmiqCTYZU5wz/NaC.V68veIlq' WHERE role = 'comptable';
+          UPDATE users SET hash = '$2a$10$yNICYMXeEuxWGHtY6MhDAuWc1j1fYYCz0nf9KPtEMWFee2eQYq18u' WHERE role = 'parent';
+          UPDATE users SET hash = '$2a$10$kNqA5Q61oP0hlnTqswox7eyz7DikfFkXfDtYPjV9TtqkaJJNSHDjq' WHERE role = 'eleve';
+        `);
+        console.log("✓ Mots de passe synchronisés avec succès.");
       }
     }
   } catch (initErr) {
