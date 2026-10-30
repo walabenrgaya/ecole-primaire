@@ -1,0 +1,20 @@
+{
+  "name": "ecole-primaire-gestion",
+  "version": "1.0.0",
+  "description": "Application web de gestion d’école primaire - Déploiement mono-école (Cahier des charges ISG Sousse)",
+  "private": true,
+  "scripts": {
+    "dev": "npm run dev:client",
+    "start": "cd server && node index.js",
+    "seed": "cd server && node seed.js",
+    "dev:server": "cd server && npm run dev",
+    "dev:client": "cd client && npm run dev",
+    "build": "cd client && npm run build",
+    "tunnel": "scripts\\tunnel.bat",
+    "backup": "scripts\\backup.bat",
+    "restore": "scripts\\restore.bat"
+  },
+  "keywords": ["mern", "education", "school-management", "pwa", "docker"],
+  "author": "Dr Hamdi Hassen - ISG Sousse",
+  "license": "ISC"
+}
