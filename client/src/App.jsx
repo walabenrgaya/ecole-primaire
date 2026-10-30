@@ -135,6 +135,9 @@ const ENT_SCHEMAS = {
 };
 
 const NAV_ROLES = {
+  superadmin: [
+    'saas_schools', 'dashboard', 'eleves', 'classes', 'finances', 'users', 'journal'
+  ],
   admin: [
     'dashboard', 'eleves', 'preinscriptions', 'classes', 'matieres', 'salles',
     'emplois', 'notes', 'absences', 'finances', 'devoirs', 'annonces', 'messages', 'users', 'journal'
@@ -154,6 +157,7 @@ const NAV_ROLES = {
 };
 
 const TAB_TITLES = {
+  saas_schools: '🏢 Établissements (SaaS)',
   dashboard: 'Tableau de bord',
   eleves: 'Élèves',
   preinscriptions: 'Inscriptions en ligne',
@@ -2056,6 +2060,186 @@ function PublicPreinscriptionModal({ onClose }) {
 }
 
 // =========================================================================
+// 14. SAAS SUPER-ADMIN SCHOOLS MANAGER
+// =========================================================================
+function SaasSchoolsSection({ user }) {
+  const [schools, setSchools] = useState([]);
+  const [stats, setStats] = useState(null);
+  const [modal, setModal] = useState(false);
+  const [form, setForm] = useState({ name: '', code: '', plan: 'standard', adresse: '', telephone: '', emailContact: '', adminNom: '', adminEmail: '', adminPassword: 'Admin123!' });
+  const [loading, setLoading] = useState(true);
+
+  const load = () => {
+    setLoading(true);
+    Promise.all([
+      api('/saas/schools'),
+      api('/saas/stats')
+    ]).then(([sList, sStats]) => {
+      setSchools(sList);
+      setStats(sStats);
+      setLoading(false);
+    }).catch(err => {
+      console.error(err);
+      setLoading(false);
+    });
+  };
+
+  useEffect(() => { load(); }, []);
+
+  const toggleStatus = async (school) => {
+    const nextStatus = school.status === 'active' ? 'suspended' : 'active';
+    if (!window.confirm(`Confirmer le changement de statut en "${nextStatus}" pour l'école ${school.name} ?`)) return;
+    try {
+      await api(`/saas/schools/${school.id}`, 'PUT', { status: nextStatus });
+      load();
+    } catch (err) {
+      alert(err.message);
+    }
+  };
+
+  const handleCreate = async () => {
+    if (!form.name || !form.code) return alert("Nom et code d'école obligatoires");
+    try {
+      await api('/saas/schools', 'POST', form);
+      setModal(false);
+      setForm({ name: '', code: '', plan: 'standard', adresse: '', telephone: '', emailContact: '', adminNom: '', adminEmail: '', adminPassword: 'Admin123!' });
+      load();
+    } catch (err) {
+      alert(err.message);
+    }
+  };
+
+  if (loading) return <div className="card"><p>Chargement des établissements SaaS...</p></div>;
+
+  return (
+    <div>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+        <div>
+          <h2>🏢 Plateforme SaaS Multi-Écoles</h2>
+          <p style={{ color: 'var(--text-muted)' }}>Gestion centrale des établissements partenaires, abonnements et isolation des données.</p>
+        </div>
+        <button className="btn-primary" onClick={() => setModal(true)}>+ Ajouter un Établissement</button>
+      </div>
+
+      {stats && (
+        <div className="stats-grid" style={{ marginBottom: '24px' }}>
+          <div className="stat-card">
+            <span className="stat-label">Établissements Hébergés</span>
+            <span className="stat-val">{stats.schoolsCount}</span>
+            <span style={{ fontSize: '12px', color: 'var(--success)' }}>{stats.activeSchools} actifs</span>
+          </div>
+          <div className="stat-card">
+            <span className="stat-label">Total Élèves (Toutes Écoles)</span>
+            <span className="stat-val">{stats.totalEleves}</span>
+          </div>
+          <div className="stat-card">
+            <span className="stat-label">Comptes Utilisateurs Actifs</span>
+            <span className="stat-val">{stats.totalUsers}</span>
+          </div>
+          <div className="stat-card">
+            <span className="stat-label">Volume Financier Global</span>
+            <span className="stat-val">{stats.totalRevenue} TND</span>
+          </div>
+        </div>
+      )}
+
+      <div className="card">
+        <h3>Liste des Établissements Partenaires</h3>
+        <table className="table" style={{ width: '100%', marginTop: '12px' }}>
+          <thead>
+            <tr>
+              <th>ID</th>
+              <th>Nom de l'école</th>
+              <th>Code Tenant</th>
+              <th>Formule / Plan</th>
+              <th>Élèves</th>
+              <th>Utilisateurs</th>
+              <th>Statut</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            {schools.map(s => (
+              <tr key={s.id}>
+                <td><b>#{s.id}</b></td>
+                <td>
+                  <b>{s.name}</b>
+                  <div style={{ fontSize: '11px', color: 'var(--text-muted)' }}>{s.adresse || s.telephone || '—'}</div>
+                </td>
+                <td><code>{s.code}</code></td>
+                <td><span className="badge badge-blue">{s.plan?.toUpperCase()}</span></td>
+                <td>🎓 {s.nbEleves}</td>
+                <td>👥 {s.nbUsers}</td>
+                <td>
+                  <span className={`badge ${s.status === 'active' ? 'badge-green' : 'badge-red'}`}>
+                    {s.status === 'active' ? '● Actif' : '● Suspendu'}
+                  </span>
+                </td>
+                <td>
+                  <button
+                    className={`btn-sm ${s.status === 'active' ? 'btn-danger' : 'btn-success'}`}
+                    onClick={() => toggleStatus(s)}
+                  >
+                    {s.status === 'active' ? 'Suspendre' : 'Activer'}
+                  </button>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+
+      {modal && (
+        <Modal title="Créer un nouvel Établissement Scolaire (Tenant)" onClose={() => setModal(false)}>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+            <div className="form-group">
+              <label>Nom de l'école *</label>
+              <input value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} placeholder="ex: Collège Al-Farabi" required />
+            </div>
+            <div className="form-group">
+              <label>Code unique (sous-domaine) *</label>
+              <input value={form.code} onChange={e => setForm({ ...form, code: e.target.value })} placeholder="ex: alfarabi-tunis" required />
+            </div>
+            <div className="form-group">
+              <label>Formule d'abonnement</label>
+              <select value={form.plan} onChange={e => setForm({ ...form, plan: e.target.value })}>
+                <option value="basic">Basic (Mono-classe)</option>
+                <option value="standard">Standard (École complète)</option>
+                <option value="premium">Premium (Multi-bâtiments + SMS)</option>
+                <option value="enterprise">Entreprise (Illimité)</option>
+              </select>
+            </div>
+            <div className="form-group">
+              <label>Téléphone contact</label>
+              <input value={form.telephone} onChange={e => setForm({ ...form, telephone: e.target.value })} placeholder="+216 71 000 000" />
+            </div>
+          </div>
+          <h4 style={{ marginTop: '16px', marginBottom: '8px' }}>Compte Administrateur / Direction :</h4>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+            <div className="form-group">
+              <label>Nom du directeur</label>
+              <input value={form.adminNom} onChange={e => setForm({ ...form, adminNom: e.target.value })} placeholder="ex: Direction M. Khaled" />
+            </div>
+            <div className="form-group">
+              <label>E-mail admin</label>
+              <input type="email" value={form.adminEmail} onChange={e => setForm({ ...form, adminEmail: e.target.value })} placeholder="admin@alfarabi.tn" />
+            </div>
+            <div className="form-group">
+              <label>Mot de passe provisoire</label>
+              <input value={form.adminPassword} onChange={e => setForm({ ...form, adminPassword: e.target.value })} />
+            </div>
+          </div>
+          <div className="form-actions" style={{ marginTop: '16px' }}>
+            <button className="btn" onClick={() => setModal(false)}>Annuler</button>
+            <button className="btn-primary" onClick={handleCreate}>Créer l'Établissement</button>
+          </div>
+        </Modal>
+      )}
+    </div>
+  );
+}
+
+// =========================================================================
 // MAIN APP ROOT COMPONENT
 // =========================================================================
 export default function App() {
@@ -2171,16 +2355,43 @@ export default function App() {
           </div>
         </div>
 
-        {/* Demo Fast Login Buttons */}
-        <div className="demo-accounts">
-          <p>Comptes de démonstration rapide :</p>
-          <div className="demo-btns">
-            <button className="demo-btn" onClick={() => quickLogin('admin@ecole.tn', 'Admin123!')}>👨‍💼 Direction</button>
-            <button className="demo-btn" onClick={() => quickLogin('prof.francais@ecole.tn', 'Prof123!')}>👨‍🏫 Prof Français</button>
-            <button className="demo-btn" onClick={() => quickLogin('prof.maths@ecole.tn', 'Prof123!')}>👩‍🏫 Prof Maths</button>
-            <button className="demo-btn" onClick={() => quickLogin('comptable@ecole.tn', 'Comptable123!')}>💼 Comptable</button>
-            <button className="demo-btn" onClick={() => quickLogin('parent.benali@ecole.tn', 'Parent123!')}>👪 Parent</button>
-            <button className="demo-btn" onClick={() => quickLogin('eleve.yassine@ecole.tn', 'Eleve123!')}>🧒 Élève</button>
+        {/* Demo Fast Login Buttons Multi-Tenant */}
+        <div className="demo-accounts" style={{ maxWidth: '520px', margin: '20px auto' }}>
+          <p style={{ fontWeight: 'bold', marginBottom: '8px' }}>⚡ Comptes de démonstration rapide (Multi-Écoles) :</p>
+          
+          <div style={{ marginBottom: '10px' }}>
+            <span style={{ fontSize: '11px', fontWeight: 'bold', color: 'var(--primary)', display: 'block', marginBottom: '4px' }}>
+              📍 ÉCOLE 1 : EXCELLENCE (SOUSSE)
+            </span>
+            <div className="demo-btns">
+              <button className="demo-btn" onClick={() => quickLogin('admin@ecole.tn', 'Admin123!')}>👨‍💼 Direction Sousse</button>
+              <button className="demo-btn" onClick={() => quickLogin('prof.francais@ecole.tn', 'Prof123!')}>👨‍🏫 Prof Français</button>
+              <button className="demo-btn" onClick={() => quickLogin('comptable@ecole.tn', 'Comptable123!')}>💼 Comptable</button>
+              <button className="demo-btn" onClick={() => quickLogin('parent.benali@ecole.tn', 'Parent123!')}>👪 Parent Sousse</button>
+            </div>
+          </div>
+
+          <div style={{ marginBottom: '10px' }}>
+            <span style={{ fontSize: '11px', fontWeight: 'bold', color: '#10b981', display: 'block', marginBottom: '4px' }}>
+              📍 ÉCOLE 2 : AL-AMAL (TUNIS)
+            </span>
+            <div className="demo-btns">
+              <button className="demo-btn" onClick={() => quickLogin('admin@alamal.tn', 'Admin123!')}>👩‍💼 Direction Tunis</button>
+              <button className="demo-btn" onClick={() => quickLogin('prof@alamal.tn', 'Prof123!')}>👨‍🏫 Prof Tunis</button>
+              <button className="demo-btn" onClick={() => quickLogin('comptable@alamal.tn', 'Comptable123!')}>💼 Comptable Tunis</button>
+              <button className="demo-btn" onClick={() => quickLogin('parent@alamal.tn', 'Parent123!')}>👪 Parent Tunis</button>
+            </div>
+          </div>
+
+          <div>
+            <span style={{ fontSize: '11px', fontWeight: 'bold', color: '#8b5cf6', display: 'block', marginBottom: '4px' }}>
+              👑 GESTIONNAIRE DE LA PLATEFORME (SAAS GLOBAL)
+            </span>
+            <div className="demo-btns">
+              <button className="demo-btn" style={{ borderColor: '#8b5cf6', fontWeight: 'bold' }} onClick={() => quickLogin('superadmin@saas.tn', 'SuperAdmin123!')}>
+                🌐 Super-Administrateur SaaS
+              </button>
+            </div>
           </div>
         </div>
 
@@ -2198,10 +2409,13 @@ export default function App() {
       {/* Top Header */}
       <header className="topbar">
         <div className="brand" onClick={() => setActiveTab('dashboard')}>
-          <div className="brand-logo">🏫</div>
+          <div className="brand-logo">{user.role === 'superadmin' ? '🌐' : '🏫'}</div>
           <div className="brand-info">
-            <h1>École Primaire d'Excellence</h1>
-            <span>Mono-école · <span className="academic-badge">2026-2027</span></span>
+            <h1>{user.schoolName || "Portail Scolaire"}</h1>
+            <span>
+              {user.schoolCode ? `Établissement : ${user.schoolCode.toUpperCase()} (${user.schoolPlan || 'Standard'})` : 'Administration Plateforme SaaS'}
+              {' · '}<span className="academic-badge">2026-2027</span>
+            </span>
           </div>
         </div>
 
@@ -2263,6 +2477,7 @@ export default function App() {
 
       {/* Main Container */}
       <main className="container">
+        {currentTab === 'saas_schools' && <SaasSchoolsSection user={user} />}
         {currentTab === 'dashboard' && <Dashboard user={user} setTab={setActiveTab} />}
         {currentTab === 'emplois' && <EmploiDuTemps user={user} />}
         {currentTab === 'devoirs' && <DevoirsSection user={user} />}

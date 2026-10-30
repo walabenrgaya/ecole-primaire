@@ -1,8 +1,7 @@
 -- =====================================================================
--- SCHÉMA RELATIONNEL POSTGRESQL OFFICIEL (Chapitres 1.4, 16, 18 du CDC)
--- Application Web de Gestion d'École Primaire (Mono-École)
--- Auteur : Dr Hamdi Hassen - ISG Sousse
--- Année scolaire de référence : 2026-2027
+-- SCHÉMA RELATIONNEL POSTGRESQL MULTI-TENANT (SaaS MULTI-ÉCOLES)
+-- Application Web de Gestion Scolaire Multi-Écoles
+-- Isolation complète par school_id
 -- =====================================================================
 
 -- Suppression préalable si reconstruction
@@ -22,14 +21,32 @@ DROP TABLE IF EXISTS messages CASCADE;
 DROP TABLE IF EXISTS notifications CASCADE;
 DROP TABLE IF EXISTS logs CASCADE;
 DROP TABLE IF EXISTS users CASCADE;
+DROP TABLE IF EXISTS schools CASCADE;
 
--- 1. Table Utilisateurs (RBAC)
+-- 0. Table Principale du SaaS : Écoles (Tenants)
+CREATE TABLE schools (
+    id SERIAL PRIMARY KEY,
+    name VARCHAR(200) NOT NULL,
+    code VARCHAR(50) UNIQUE NOT NULL,
+    status VARCHAR(20) DEFAULT 'active' CHECK (status IN ('trial', 'active', 'suspended')),
+    plan VARCHAR(20) DEFAULT 'basic' CHECK (plan IN ('basic', 'standard', 'premium', 'enterprise')),
+    adresse VARCHAR(255),
+    telephone VARCHAR(50),
+    email_contact VARCHAR(150),
+    subscription_end DATE DEFAULT (CURRENT_DATE + INTERVAL '1 year'),
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+-- 1. Table Utilisateurs (RBAC Multi-tenant)
+-- school_id est NULL uniquement pour le Super-Administrateur de la plateforme SaaS
 CREATE TABLE users (
     id SERIAL PRIMARY KEY,
+    school_id INT REFERENCES schools(id) ON DELETE CASCADE,
     nom VARCHAR(150) NOT NULL,
     email VARCHAR(150) UNIQUE NOT NULL,
     hash VARCHAR(255) NOT NULL,
-    role VARCHAR(20) NOT NULL CHECK (role IN ('admin', 'enseignant', 'comptable', 'parent', 'eleve')),
+    role VARCHAR(20) NOT NULL CHECK (role IN ('superadmin', 'admin', 'enseignant', 'comptable', 'parent', 'eleve')),
     telephone VARCHAR(30),
     eleve_id INT,
     classe VARCHAR(50),
@@ -40,6 +57,7 @@ CREATE TABLE users (
 -- 2. Table Salles
 CREATE TABLE salles (
     id SERIAL PRIMARY KEY,
+    school_id INT NOT NULL REFERENCES schools(id) ON DELETE CASCADE,
     nom VARCHAR(80) NOT NULL,
     cap INT NOT NULL DEFAULT 30,
     dispo VARCHAR(20) DEFAULT 'Disponible' CHECK (dispo IN ('Disponible', 'Indisponible')),
@@ -51,6 +69,7 @@ CREATE TABLE salles (
 -- 3. Table Matières
 CREATE TABLE matieres (
     id SERIAL PRIMARY KEY,
+    school_id INT NOT NULL REFERENCES schools(id) ON DELETE CASCADE,
     nom VARCHAR(100) NOT NULL,
     coef NUMERIC(3,1) NOT NULL DEFAULT 1.0,
     niveau VARCHAR(20) NOT NULL,
@@ -59,9 +78,10 @@ CREATE TABLE matieres (
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
--- 4. Table Classes (avec annee_scolaire)
+-- 4. Table Classes (avec school_id et annee_scolaire)
 CREATE TABLE classes (
     id SERIAL PRIMARY KEY,
+    school_id INT NOT NULL REFERENCES schools(id) ON DELETE CASCADE,
     niveau VARCHAR(20) NOT NULL CHECK (niveau IN ('CP', 'CE1', 'CE2', 'CM1', 'CM2')),
     section VARCHAR(10) NOT NULL,
     cap INT NOT NULL DEFAULT 25,
@@ -74,8 +94,10 @@ CREATE TABLE classes (
 -- 5. Table Élèves (Dossier complet & coordonnées parent)
 CREATE TABLE eleves (
     id SERIAL PRIMARY KEY,
+    school_id INT NOT NULL REFERENCES schools(id) ON DELETE CASCADE,
     nom VARCHAR(100) NOT NULL,
     prenom VARCHAR(100) NOT NULL,
+    matricule VARCHAR(50),
     naissance DATE NOT NULL,
     genre CHAR(1) DEFAULT 'M' CHECK (genre IN ('M', 'F')),
     photo TEXT,
@@ -89,12 +111,14 @@ CREATE TABLE eleves (
     annee_scolaire VARCHAR(10) NOT NULL DEFAULT '2026-2027',
     statut VARCHAR(30) DEFAULT 'inscrit' CHECK (statut IN ('inscrit', 'pre-inscription', 'radie')),
     deleted BOOLEAN DEFAULT FALSE,
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT uq_eleve_matricule UNIQUE (school_id, matricule)
 );
 
--- 6. Table Emploi du Temps (avec détection de conflits & annee_scolaire)
+-- 6. Table Emploi du Temps (avec détection de conflits par école)
 CREATE TABLE emplois (
     id SERIAL PRIMARY KEY,
+    school_id INT NOT NULL REFERENCES schools(id) ON DELETE CASCADE,
     classe_id INT NOT NULL REFERENCES classes(id) ON DELETE CASCADE,
     matiere_id INT NOT NULL REFERENCES matieres(id) ON DELETE CASCADE,
     enseignant_id INT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
@@ -107,12 +131,10 @@ CREATE TABLE emplois (
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
--- Index pour détection rapide des conflits
-CREATE INDEX idx_emplois_conflit ON emplois (jour, debut, fin, annee_scolaire) WHERE deleted = FALSE;
-
--- 7. Table Notes & Évaluations (avec annee_scolaire)
+-- 7. Table Notes & Évaluations
 CREATE TABLE notes (
     id SERIAL PRIMARY KEY,
+    school_id INT NOT NULL REFERENCES schools(id) ON DELETE CASCADE,
     eleve_id INT NOT NULL REFERENCES eleves(id) ON DELETE CASCADE,
     matiere_id INT NOT NULL REFERENCES matieres(id) ON DELETE CASCADE,
     eval VARCHAR(50) NOT NULL CHECK (eval IN ('Contrôle continu', 'Examen T1', 'Examen T2', 'Examen T3')),
@@ -123,9 +145,10 @@ CREATE TABLE notes (
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
--- 8. Table Absences & Justifications (avec annee_scolaire)
+-- 8. Table Absences & Justifications
 CREATE TABLE absences (
     id SERIAL PRIMARY KEY,
+    school_id INT NOT NULL REFERENCES schools(id) ON DELETE CASCADE,
     eleve_id INT NOT NULL REFERENCES eleves(id) ON DELETE CASCADE,
     date DATE NOT NULL,
     creneau VARCHAR(30) DEFAULT 'Matinée',
@@ -139,23 +162,26 @@ CREATE TABLE absences (
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
--- 9. Table Paiements & Reçus (avec annee_scolaire)
+-- 9. Table Paiements & Reçus (numéro de reçu unique par école)
 CREATE TABLE paiements (
     id SERIAL PRIMARY KEY,
+    school_id INT NOT NULL REFERENCES schools(id) ON DELETE CASCADE,
     eleve_id INT NOT NULL REFERENCES eleves(id) ON DELETE RESTRICT,
     montant NUMERIC(10,2) NOT NULL CHECK (montant > 0),
     mode VARCHAR(30) NOT NULL CHECK (mode IN ('Espèces', 'Virement', 'Mobile money')),
     type VARCHAR(50) DEFAULT 'Scolarité',
-    recu_num VARCHAR(50) UNIQUE NOT NULL,
+    recu_num VARCHAR(50) NOT NULL,
     date DATE NOT NULL DEFAULT CURRENT_DATE,
     annee_scolaire VARCHAR(10) NOT NULL DEFAULT '2026-2027',
     deleted BOOLEAN DEFAULT FALSE,
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT uq_paiement_recu UNIQUE (school_id, recu_num)
 );
 
--- 10. Table Devoirs (Homework)
+-- 10. Table Devoirs
 CREATE TABLE devoirs (
     id SERIAL PRIMARY KEY,
+    school_id INT NOT NULL REFERENCES schools(id) ON DELETE CASCADE,
     titre VARCHAR(200) NOT NULL,
     desc_devoir TEXT,
     matiere_id INT NOT NULL REFERENCES matieres(id) ON DELETE CASCADE,
@@ -170,9 +196,10 @@ CREATE TABLE devoirs (
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
--- 11. Table Devoirs Rendus (Submissions élèves)
+-- 11. Table Devoirs Rendus
 CREATE TABLE devoirs_rendus (
     id SERIAL PRIMARY KEY,
+    school_id INT NOT NULL REFERENCES schools(id) ON DELETE CASCADE,
     devoir_id INT NOT NULL REFERENCES devoirs(id) ON DELETE CASCADE,
     eleve_id INT NOT NULL REFERENCES eleves(id) ON DELETE CASCADE,
     eleve_nom VARCHAR(150),
@@ -191,6 +218,7 @@ CREATE TABLE devoirs_rendus (
 -- 12. Table Pré-inscriptions en Ligne
 CREATE TABLE preinscriptions (
     id SERIAL PRIMARY KEY,
+    school_id INT NOT NULL REFERENCES schools(id) ON DELETE CASCADE,
     nom VARCHAR(100) NOT NULL,
     prenom VARCHAR(100) NOT NULL,
     naissance DATE NOT NULL,
@@ -207,9 +235,10 @@ CREATE TABLE preinscriptions (
     date_demande TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
--- 13. Table Annonces Officielles (Immuables)
+-- 13. Table Annonces Officielles
 CREATE TABLE annonces (
     id SERIAL PRIMARY KEY,
+    school_id INT NOT NULL REFERENCES schools(id) ON DELETE CASCADE,
     titre VARCHAR(200) NOT NULL,
     contenu TEXT NOT NULL,
     cible VARCHAR(30) DEFAULT 'tous' CHECK (cible IN ('tous', 'parents', 'enseignants', 'eleves')),
@@ -222,6 +251,7 @@ CREATE TABLE annonces (
 -- 14. Table Messages (Messagerie Interne Traçable)
 CREATE TABLE messages (
     id SERIAL PRIMARY KEY,
+    school_id INT NOT NULL REFERENCES schools(id) ON DELETE CASCADE,
     de_id INT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     de_nom VARCHAR(150),
     de_role VARCHAR(20),
@@ -239,6 +269,7 @@ CREATE TABLE messages (
 -- 15. Table Notifications In-App
 CREATE TABLE notifications (
     id SERIAL PRIMARY KEY,
+    school_id INT NOT NULL REFERENCES schools(id) ON DELETE CASCADE,
     user_id INT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     titre VARCHAR(150) NOT NULL,
     message TEXT NOT NULL,
@@ -251,9 +282,31 @@ CREATE TABLE notifications (
 -- 16. Table Journal d'Audit & Sécurité
 CREATE TABLE logs (
     id SERIAL PRIMARY KEY,
+    school_id INT REFERENCES schools(id) ON DELETE CASCADE,
     user_id VARCHAR(50),
     nom VARCHAR(150),
     action VARCHAR(150) NOT NULL,
     data JSONB,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
+
+-- =====================================================================
+-- INDEX D'ISOLATION ET DE PERFORMANCE PAR ÉCOLE (TENANT)
+-- =====================================================================
+CREATE INDEX idx_users_school ON users (school_id);
+CREATE INDEX idx_salles_school ON salles (school_id);
+CREATE INDEX idx_matieres_school ON matieres (school_id);
+CREATE INDEX idx_classes_school ON classes (school_id);
+CREATE INDEX idx_eleves_school ON eleves (school_id);
+CREATE INDEX idx_emplois_school ON emplois (school_id);
+CREATE INDEX idx_emplois_conflit ON emplois (school_id, jour, debut, fin, annee_scolaire) WHERE deleted = FALSE;
+CREATE INDEX idx_notes_school ON notes (school_id);
+CREATE INDEX idx_absences_school ON absences (school_id);
+CREATE INDEX idx_paiements_school ON paiements (school_id);
+CREATE INDEX idx_devoirs_school ON devoirs (school_id);
+CREATE INDEX idx_devoirs_rendus_school ON devoirs_rendus (school_id);
+CREATE INDEX idx_preinscriptions_school ON preinscriptions (school_id);
+CREATE INDEX idx_annonces_school ON annonces (school_id);
+CREATE INDEX idx_messages_school ON messages (school_id);
+CREATE INDEX idx_notifications_school ON notifications (school_id);
+CREATE INDEX idx_logs_school ON logs (school_id);
