@@ -2304,95 +2304,229 @@ export default function App() {
     }).catch(err => setLoginError(err.message));
   };
 
-  // --- LOGIN SCREEN ---
+  // --- LOGIN SCREEN — PREMIUM DESIGN ---
   if (!user) {
     return (
-      <div style={{ maxWidth: '440px', margin: '8vh auto', padding: '20px' }}>
-        <div style={{ textAlign: 'center', marginBottom: '24px' }}>
-          <div className="brand-logo" style={{ width: '56px', height: '56px', fontSize: '26px', margin: '0 auto 12px' }}>
-            🏫
+      <div style={{
+        minHeight: '100vh',
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        justifyContent: 'center',
+        padding: '24px',
+        position: 'relative',
+        overflow: 'hidden'
+      }}>
+        {/* Animated gradient orbs background */}
+        <div style={{
+          position: 'fixed', inset: 0, zIndex: 0, pointerEvents: 'none',
+          background: theme === 'dark'
+            ? 'radial-gradient(ellipse 80% 60% at 20% 0%, rgba(79,110,247,0.12) 0%, transparent 50%), radial-gradient(ellipse 60% 50% at 80% 100%, rgba(139,92,246,0.1) 0%, transparent 50%), radial-gradient(ellipse 50% 40% at 50% 50%, rgba(20,184,166,0.06) 0%, transparent 50%)'
+            : 'radial-gradient(ellipse 80% 60% at 20% 0%, rgba(79,110,247,0.08) 0%, transparent 50%), radial-gradient(ellipse 60% 50% at 80% 100%, rgba(139,92,246,0.06) 0%, transparent 50%), radial-gradient(ellipse 50% 40% at 50% 50%, rgba(20,184,166,0.04) 0%, transparent 50%)'
+        }} />
+
+        {/* Theme toggle */}
+        <button
+          onClick={toggleTheme}
+          className="btn-sm"
+          style={{ position: 'fixed', top: '16px', right: '16px', zIndex: 10 }}
+        >
+          {theme === 'light' ? '🌙' : '☀️'}
+        </button>
+
+        <div style={{ maxWidth: '440px', width: '100%', zIndex: 1 }}>
+          {/* Hero Brand */}
+          <div style={{
+            textAlign: 'center',
+            marginBottom: '32px',
+            animation: 'slideUp 0.6s cubic-bezier(0.4,0,0.2,1) both'
+          }}>
+            <div style={{
+              width: '64px', height: '64px', borderRadius: '18px',
+              background: 'linear-gradient(135deg, #4f6ef7 0%, #8b5cf6 100%)',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              fontSize: '30px', margin: '0 auto 16px',
+              boxShadow: '0 8px 24px rgba(79,110,247,0.35)',
+              animation: 'float 3s ease-in-out infinite'
+            }}>
+              🏫
+            </div>
+            <h2 style={{
+              fontSize: '26px', fontWeight: '800', letterSpacing: '-0.5px',
+              background: 'linear-gradient(135deg, var(--text-main) 0%, var(--text-muted) 100%)',
+              WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent',
+              backgroundClip: 'text'
+            }}>
+              École Primaire d'Excellence
+            </h2>
+            <p style={{
+              color: 'var(--text-muted)', fontSize: '14px', marginTop: '8px',
+              fontWeight: '500'
+            }}>
+              Portail de Gestion Scolaire · Année 2026-2027
+            </p>
           </div>
-          <h2 style={{ fontSize: '22px', fontWeight: '800' }}>École Primaire d’Excellence</h2>
-          <p style={{ color: 'var(--text-muted)', fontSize: '13px', marginTop: '4px' }}>
-            Portail de Gestion Scolaire · Année 2026-2027
-          </p>
-        </div>
 
-        <div className="card">
-          <form onSubmit={handleLogin}>
-            <div className="form-group">
-              <label>Adresse E-mail</label>
-              <input
-                type="email"
-                placeholder="nom@ecole.tn"
-                value={credentials.email}
-                onChange={e => setCredentials({ ...credentials, email: e.target.value })}
-                required
-              />
+          {/* Login Card — Glassmorphism */}
+          <div style={{
+            background: 'var(--bg-card)',
+            border: '1px solid var(--border)',
+            borderRadius: '18px',
+            padding: '32px',
+            boxShadow: '0 12px 40px rgba(0,0,0,0.08)',
+            animation: 'slideUp 0.6s cubic-bezier(0.4,0,0.2,1) 0.1s both'
+          }}>
+            <form onSubmit={handleLogin}>
+              <div className="form-group">
+                <label style={{ fontWeight: '600', fontSize: '13px', color: 'var(--text-muted)', letterSpacing: '0.3px' }}>
+                  Adresse E-mail
+                </label>
+                <input
+                  type="email"
+                  placeholder="nom@ecole.tn"
+                  value={credentials.email}
+                  onChange={e => setCredentials({ ...credentials, email: e.target.value })}
+                  required
+                  style={{ padding: '12px 16px', fontSize: '14.5px', borderRadius: '12px' }}
+                />
+              </div>
+              <div className="form-group">
+                <label style={{ fontWeight: '600', fontSize: '13px', color: 'var(--text-muted)', letterSpacing: '0.3px' }}>
+                  Mot de passe
+                </label>
+                <input
+                  type="password"
+                  placeholder="••••••••"
+                  value={credentials.password}
+                  onChange={e => setCredentials({ ...credentials, password: e.target.value })}
+                  required
+                  style={{ padding: '12px 16px', fontSize: '14.5px', borderRadius: '12px' }}
+                />
+              </div>
+
+              {loginError && (
+                <div style={{
+                  background: 'var(--danger-bg)', color: 'var(--danger-text)',
+                  padding: '10px 14px', borderRadius: '10px', fontSize: '13px',
+                  fontWeight: '600', marginBottom: '14px',
+                  border: '1px solid rgba(239,68,68,0.2)',
+                  display: 'flex', alignItems: 'center', gap: '8px'
+                }}>
+                  ⚠️ {loginError}
+                </div>
+              )}
+
+              <button type="submit" className="btn-primary" style={{
+                width: '100%', justifyContent: 'center', padding: '13px',
+                fontSize: '15px', borderRadius: '12px', fontWeight: '700',
+                letterSpacing: '0.2px'
+              }}>
+                Se connecter →
+              </button>
+            </form>
+
+            <div style={{
+              display: 'flex', alignItems: 'center', gap: '12px',
+              margin: '20px 0', color: 'var(--text-light)', fontSize: '12px'
+            }}>
+              <div style={{ flex: 1, height: '1px', background: 'var(--border)' }} />
+              <span>ou</span>
+              <div style={{ flex: 1, height: '1px', background: 'var(--border)' }} />
             </div>
-            <div className="form-group">
-              <label>Mot de passe</label>
-              <input
-                type="password"
-                placeholder="••••••••"
-                value={credentials.password}
-                onChange={e => setCredentials({ ...credentials, password: e.target.value })}
-                required
-              />
-            </div>
 
-            {loginError && <p className="badge badge-red" style={{ display: 'block', padding: '8px', marginBottom: '12px' }}>{loginError}</p>}
-
-            <button type="submit" className="btn-primary" style={{ width: '100%', justifyContent: 'center' }}>
-              Se connecter
-            </button>
-          </form>
-
-          <div style={{ textAlign: 'center', marginTop: '16px' }}>
-            <button className="btn" style={{ width: '100%', justifyContent: 'center' }} onClick={() => setPublicModal(true)}>
+            <button className="btn" style={{
+              width: '100%', justifyContent: 'center',
+              padding: '11px', borderRadius: '12px', fontWeight: '600'
+            }} onClick={() => setPublicModal(true)}>
               📋 Nouvelle Pré-inscription en ligne
             </button>
           </div>
-        </div>
 
-        {/* Demo Fast Login Buttons Multi-Tenant */}
-        <div className="demo-accounts" style={{ maxWidth: '520px', margin: '20px auto' }}>
-          <p style={{ fontWeight: 'bold', marginBottom: '8px' }}>⚡ Comptes de démonstration rapide (Multi-Écoles) :</p>
-          
-          <div style={{ marginBottom: '10px' }}>
-            <span style={{ fontSize: '11px', fontWeight: 'bold', color: 'var(--primary)', display: 'block', marginBottom: '4px' }}>
-              📍 ÉCOLE 1 : EXCELLENCE (SOUSSE)
-            </span>
-            <div className="demo-btns">
-              <button className="demo-btn" onClick={() => quickLogin('admin@ecole.tn', 'Admin123!')}>👨‍💼 Direction Sousse</button>
-              <button className="demo-btn" onClick={() => quickLogin('prof.francais@ecole.tn', 'Prof123!')}>👨‍🏫 Prof Français</button>
-              <button className="demo-btn" onClick={() => quickLogin('comptable@ecole.tn', 'Comptable123!')}>💼 Comptable</button>
-              <button className="demo-btn" onClick={() => quickLogin('parent.benali@ecole.tn', 'Parent123!')}>👪 Parent Sousse</button>
+          {/* Demo Fast Login — Premium Styled */}
+          <div style={{
+            marginTop: '28px', padding: '22px',
+            background: 'var(--bg-subtle)', border: '1px solid var(--border)',
+            borderRadius: '16px',
+            animation: 'slideUp 0.6s cubic-bezier(0.4,0,0.2,1) 0.2s both'
+          }}>
+            <p style={{
+              fontWeight: '700', marginBottom: '14px', fontSize: '11.5px',
+              color: 'var(--text-muted)', textTransform: 'uppercase',
+              letterSpacing: '0.8px', textAlign: 'center'
+            }}>
+              ⚡ Accès Démonstration Multi-Écoles
+            </p>
+            
+            {/* École 1 */}
+            <div style={{ marginBottom: '14px' }}>
+              <div style={{
+                fontSize: '11px', fontWeight: '700', color: 'var(--primary)',
+                marginBottom: '6px', display: 'flex', alignItems: 'center', gap: '6px'
+              }}>
+                <span style={{
+                  width: '8px', height: '8px', borderRadius: '50%',
+                  background: 'var(--primary)', display: 'inline-block'
+                }} />
+                ÉCOLE 1 : EXCELLENCE (SOUSSE)
+              </div>
+              <div className="demo-btns">
+                <button className="demo-btn" onClick={() => quickLogin('admin@ecole.tn', 'Admin123!')}>👨‍💼 Direction</button>
+                <button className="demo-btn" onClick={() => quickLogin('prof.francais@ecole.tn', 'Prof123!')}>👨‍🏫 Prof</button>
+                <button className="demo-btn" onClick={() => quickLogin('comptable@ecole.tn', 'Comptable123!')}>💼 Comptable</button>
+                <button className="demo-btn" onClick={() => quickLogin('parent.benali@ecole.tn', 'Parent123!')}>👪 Parent</button>
+              </div>
+            </div>
+
+            {/* École 2 */}
+            <div style={{ marginBottom: '14px' }}>
+              <div style={{
+                fontSize: '11px', fontWeight: '700', color: 'var(--success)',
+                marginBottom: '6px', display: 'flex', alignItems: 'center', gap: '6px'
+              }}>
+                <span style={{
+                  width: '8px', height: '8px', borderRadius: '50%',
+                  background: 'var(--success)', display: 'inline-block'
+                }} />
+                ÉCOLE 2 : AL-AMAL (TUNIS)
+              </div>
+              <div className="demo-btns">
+                <button className="demo-btn" onClick={() => quickLogin('admin@alamal.tn', 'Admin123!')}>👩‍💼 Direction</button>
+                <button className="demo-btn" onClick={() => quickLogin('prof@alamal.tn', 'Prof123!')}>👨‍🏫 Prof</button>
+                <button className="demo-btn" onClick={() => quickLogin('comptable@alamal.tn', 'Comptable123!')}>💼 Comptable</button>
+                <button className="demo-btn" onClick={() => quickLogin('parent@alamal.tn', 'Parent123!')}>👪 Parent</button>
+              </div>
+            </div>
+
+            {/* Super Admin */}
+            <div>
+              <div style={{
+                fontSize: '11px', fontWeight: '700', color: 'var(--purple)',
+                marginBottom: '6px', display: 'flex', alignItems: 'center', gap: '6px'
+              }}>
+                <span style={{
+                  width: '8px', height: '8px', borderRadius: '50%',
+                  background: 'var(--purple)', display: 'inline-block'
+                }} />
+                SUPER-ADMINISTRATEUR SAAS
+              </div>
+              <div className="demo-btns">
+                <button className="demo-btn" style={{
+                  background: 'linear-gradient(135deg, rgba(139,92,246,0.1), rgba(79,110,247,0.1))',
+                  borderColor: 'var(--purple)', fontWeight: '700'
+                }} onClick={() => quickLogin('superadmin@saas.tn', 'SuperAdmin123!')}>
+                  👑 Plateforme Globale
+                </button>
+              </div>
             </div>
           </div>
 
-          <div style={{ marginBottom: '10px' }}>
-            <span style={{ fontSize: '11px', fontWeight: 'bold', color: '#10b981', display: 'block', marginBottom: '4px' }}>
-              📍 ÉCOLE 2 : AL-AMAL (TUNIS)
-            </span>
-            <div className="demo-btns">
-              <button className="demo-btn" onClick={() => quickLogin('admin@alamal.tn', 'Admin123!')}>👩‍💼 Direction Tunis</button>
-              <button className="demo-btn" onClick={() => quickLogin('prof@alamal.tn', 'Prof123!')}>👨‍🏫 Prof Tunis</button>
-              <button className="demo-btn" onClick={() => quickLogin('comptable@alamal.tn', 'Comptable123!')}>💼 Comptable Tunis</button>
-              <button className="demo-btn" onClick={() => quickLogin('parent@alamal.tn', 'Parent123!')}>👪 Parent Tunis</button>
-            </div>
-          </div>
-
-          <div>
-            <span style={{ fontSize: '11px', fontWeight: 'bold', color: '#8b5cf6', display: 'block', marginBottom: '4px' }}>
-              👑 GESTIONNAIRE DE LA PLATEFORME (SAAS GLOBAL)
-            </span>
-            <div className="demo-btns">
-              <button className="demo-btn" style={{ borderColor: '#8b5cf6', fontWeight: 'bold' }} onClick={() => quickLogin('superadmin@saas.tn', 'SuperAdmin123!')}>
-                🌐 Super-Administrateur SaaS
-              </button>
-            </div>
-          </div>
+          {/* Footer */}
+          <p style={{
+            textAlign: 'center', marginTop: '24px',
+            fontSize: '12px', color: 'var(--text-light)', fontWeight: '500'
+          }}>
+            © 2026-2027 · Système de Gestion Scolaire
+          </p>
         </div>
 
         {publicModal && <PublicPreinscriptionModal onClose={() => setPublicModal(false)} />}
