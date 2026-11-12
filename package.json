@@ -1,20 +1,30 @@
 {
-  "name": "ecole-primaire-gestion",
+  "name": "edupilot",
   "version": "1.0.0",
-  "description": "Application web de gestion d’école primaire - Déploiement mono-école (Cahier des charges ISG Sousse)",
+  "description": "EduPilot – plateforme SaaS de gestion scolaire multi-établissements avec module Business Intelligence",
   "private": true,
   "scripts": {
-    "dev": "npm run dev:client",
-    "start": "cd server && node index.js",
-    "seed": "cd server && node seed.js",
-    "dev:server": "cd server && npm run dev",
-    "dev:client": "cd client && npm run dev",
-    "build": "cd client && npm run build",
-    "tunnel": "scripts\\tunnel.bat",
-    "backup": "scripts\\backup.bat",
-    "restore": "scripts\\restore.bat"
+    "dev": "npm --prefix client run dev",
+    "dev:server": "npm --prefix server run dev",
+    "build": "npm --prefix client run build",
+    "start": "node server/index.js",
+    "seed": "node server/seed.js",
+    "test": "node server/scripts/test_securite.js",
+    "docs": "node scripts/generer_identifiants_docx.js",
+    "tunnel": "cloudflared tunnel --url http://localhost:5000",
+    "backup": "bash scripts/backup.sh"
   },
-  "keywords": ["mern", "education", "school-management", "pwa", "docker"],
-  "author": "Dr Hamdi Hassen - ISG Sousse",
-  "license": "ISC"
+  "keywords": [
+    "saas",
+    "education",
+    "business-intelligence",
+    "postgresql",
+    "react",
+    "pwa"
+  ],
+  "author": "",
+  "license": "ISC",
+  "devDependencies": {
+    "docx": "^9.15.3"
+  }
 }

@@ -6,7 +6,7 @@
 
 ## 1. Connexion & Tableau de Bord
 - **URL :** `http://localhost:5000` (ou domaine de production).
-- **Identifiants par défaut :** `admin@ecole.tn` / `Admin123!`.
+- **Identifiants de démonstration :** voir le document `Identifiants_EduPilot.docx` (un compte administrateur et un compte directeur par établissement).
 - **Tableau de Bord :** Dès la connexion, vous disposez d'une vue synthétique sur :
   - Le nombre total d'élèves inscrits.
   - Le montant global des frais scolaires perçus.
