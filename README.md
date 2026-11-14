@@ -9,7 +9,7 @@ Application web **multi-établissements** et **multi-utilisateurs** de gestion d
 | Base de données | PostgreSQL (une base, isolation stricte par `school_id`) |
 | Documents | Reçus et bulletins PDF générés côté serveur (PDFKit) |
 | Notifications | Notifications in-app, e-mail SMTP/SendGrid (simulé et tracé si non configuré) |
-| Déploiement | Docker, Render (`render.yaml`), Railway (`railway.json`), VPS (`docker-compose.yml`), Cloudflare Tunnel |
+| Déploiement | Serveur Linux Docker : EduPilot + PostgreSQL + **Nextcloud** (stockage des fichiers) + Caddy HTTPS ; aussi Render et Railway |
 
 ## Fonctionnalités
 
@@ -55,7 +55,7 @@ Trois établissements de démonstration (Sousse, Tunis, Sfax), chacun avec un co
 
 ## Déploiement
 
-Voir [docs/GUIDE_DEPLOIEMENT.md](docs/GUIDE_DEPLOIEMENT.md) : Render (recommandé), Railway, VPS Docker + Nginx + Let's Encrypt, Cloudflare Tunnel pour une démonstration.
+Déploiement retenu : un serveur Linux avec EduPilot et Nextcloud, installé en une commande (`scripts/installer-serveur.sh`). Détails et autres options dans [docs/GUIDE_DEPLOIEMENT.md](docs/GUIDE_DEPLOIEMENT.md).
 
 ## Structure
 

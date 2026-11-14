@@ -11,6 +11,7 @@ import { recuPdf, bulletinPdf } from '../lib/pdf.js';
 import { checkCapacite } from '../lib/crud.js';
 import { teacherClassIds, eleveIdOf } from '../lib/scope.js';
 import { upload } from './core.js';
+import { persistUpload, putFile, pdfBuffer, nextcloud } from '../lib/storage.js';
 
 const r = express.Router();
 const money = n => `${(+n || 0).toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} TND`;
@@ -54,6 +55,7 @@ r.post('/devoirs/:id/rendre', auth, only('eleve', 'parent'), needSchool, upload.
   const existing = await one('SELECT * FROM devoirs_rendus WHERE devoir_id = $1 AND eleve_id = $2', [d.id, eleveId]);
   if (existing?.statut === 'corrige') fail(409, 'Ce travail a déjà été corrigé');
   if (existing && enRetard) fail(409, 'La date de remise est dépassée : le dépôt ne peut plus être remplacé');
+  await persistUpload(req.file);
   const fichier = req.file ? `/uploads/${req.file.filename}` : null;
   if (!fichier && !req.body.contenu) fail(400, 'Ajoutez un fichier ou un texte');
   let row;
@@ -241,6 +243,14 @@ r.post('/paiements', auth, only('admin', 'comptable'), needSchool, wrap(async (r
   await audit(req.u, 'Enregistrement paiement', { entite: 'paiements', entiteId: p.id, apres: p });
 
   const situation = await situationEleve(eleve, AN);
+  if (nextcloud) {
+    // Archivage du reçu PDF dans l'espace Nextcloud de l'établissement
+    const school = await one('SELECT * FROM schools WHERE id = $1', [req.u.schoolId]);
+    const classe = eleve.classe_id ? await one(`SELECT niveau || ' ' || section AS l FROM classes WHERE id = $1`, [eleve.classe_id]) : null;
+    pdfBuffer(recuPdf, { school, paiement: p, eleve, classe: classe?.l, situation })
+      .then(buf => putFile(`${school.code}/recus/${AN}/${p.recu_num}.pdf`, buf, 'application/pdf'))
+      .catch(e => console.error('Archivage Nextcloud du reçu :', e.message));
+  }
   const lien = `${PUBLIC_URL}/recu/${p.id}`;
   let envoi = { message: 'aucun parent rattaché', email: null };
   const parent = eleve.parent_id && await one('SELECT id, nom, email, role FROM users WHERE id = $1 AND deleted = FALSE', [eleve.parent_id]);

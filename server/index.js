@@ -14,6 +14,7 @@ import coreRoutes, { UPLOAD_DIR } from './routes/core.js';
 import scolariteRoutes, { relancesAutomatiques } from './routes/scolarite.js';
 import biRoutes from './routes/bi.js';
 import { seedDatabase } from './seed.js';
+import { serveUploads, nextcloud } from './lib/storage.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const app = express();
@@ -44,7 +45,7 @@ app.use('/api', rateLimit({ windowMs: 60 * 1000, limit: 900, standardHeaders: tr
 
 /* ------------------------------ Fichiers ------------------------------ */
 if (!fs.existsSync(UPLOAD_DIR)) fs.mkdirSync(UPLOAD_DIR, { recursive: true });
-app.use('/uploads', express.static(UPLOAD_DIR, { index: false, dotfiles: 'deny', setHeaders: res => res.setHeader('X-Content-Type-Options', 'nosniff') }));
+app.get('/uploads/:name', serveUploads(UPLOAD_DIR));
 
 /* -------------------------------- API --------------------------------- */
 app.use('/api', coreRoutes);
@@ -100,7 +101,7 @@ async function ensureDatabase() {
 try {
   await pool.query('SELECT 1');
   await ensureDatabase();
-  app.listen(PORT, () => console.log(`API prête sur le port ${PORT} [${NODE_ENV}]`));
+  app.listen(PORT, () => console.log(`API prête sur le port ${PORT} [${NODE_ENV}] – stockage : ${nextcloud ? 'Nextcloud' : 'disque local'}`));
 
   // Relances automatiques des impayés : vérification horaire, exécution une fois par jour à 8 h
   if (process.env.AUTO_RELANCES !== 'false') {

@@ -10,6 +10,7 @@ import { auth, only, needSchool, wrap, fail, one, all, toId, childrenOf } from '
 import { audit, diff } from '../lib/audit.js';
 import { notify, sendEmail } from '../lib/notify.js';
 import { teacherClassIds } from '../lib/scope.js';
+import { persistUpload, nextcloud, nextcloudInfo } from '../lib/storage.js';
 
 export const UPLOAD_DIR = path.resolve(SERVER_DIR, process.env.UPLOAD_DIR || 'uploads');
 const r = express.Router();
@@ -17,7 +18,7 @@ const r = express.Router();
 /* ------------------------------ Santé ------------------------------- */
 r.get('/health', wrap(async (req, res) => {
   await pool.query('SELECT 1');
-  res.json({ ok: true, annee: AN });
+  res.json({ ok: true, annee: AN, stockage: nextcloud ? 'nextcloud' : 'local' });
 }));
 
 // Liste publique minimale des établissements actifs (formulaire de pré-inscription)
@@ -392,8 +393,12 @@ export const upload = multer({
 
 r.post('/upload', auth, upload.single('file'), wrap(async (req, res) => {
   if (!req.file) fail(400, 'Aucun fichier reçu');
+  await persistUpload(req.file);
   res.json({ url: `/uploads/${req.file.filename}`, nom: req.file.originalname, taille: req.file.size });
 }));
+
+// Espace documentaire Nextcloud (lien affiché à l'administration)
+r.get('/stockage', auth, only('admin', 'directeur', 'comptable'), (req, res) => res.json(nextcloudInfo()));
 
 /* --------------------------- Journal d'audit -------------------------- */
 r.get('/journal', auth, only('admin', 'directeur'), needSchool, wrap(async (req, res) => {

@@ -2,7 +2,7 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
   GraduationCap, LayoutDashboard, Users, School, BookOpen, DoorOpen, CalendarDays, ClipboardList, FileText,
   CalendarX, Wallet, NotebookPen, Megaphone, MessagesSquare, UserCog, ScrollText, Building2, Bell, Moon, Sun,
-  LogOut, Menu, KeyRound, ChevronRight, BarChart3, UserPlus, LineChart, ShieldCheck
+  LogOut, Menu, KeyRound, ChevronRight, BarChart3, UserPlus, LineChart, ShieldCheck, Cloud, ExternalLink
 } from 'lucide-react';
 import { api, get, post, setUnauthorizedHandler, openFile } from './lib/api.js';
 import { navigate, useLocation } from './lib/router.js';
@@ -180,6 +180,7 @@ function Shell({ user, path, theme, setTheme, logout, school, setSchool }) {
               })}
             </div>
           ))}
+          <DocumentsLink user={user} />
         </nav>
         <div className="sidebar-foot"><ShieldCheck size={13} style={{ verticalAlign: -2 }} /> Données isolées par établissement</div>
       </aside>
@@ -201,6 +202,23 @@ function Shell({ user, path, theme, setTheme, logout, school, setSchool }) {
           {needsSchool ? <ChooseSchool /> : <Page />}
         </main>
       </div>
+    </div>
+  );
+}
+
+// Lien vers l'espace documentaire Nextcloud (reçus archivés, dépôts) lorsqu'il est configuré
+function DocumentsLink({ user }) {
+  const [info, setInfo] = useState(null);
+  useEffect(() => {
+    if (['admin', 'directeur', 'comptable', 'superadmin'].includes(user.role)) get('/stockage').then(setInfo).catch(() => {});
+  }, [user.role]);
+  if (!info?.actif) return null;
+  return (
+    <div className="nav-group">
+      <div className="nav-group-title">Cloud</div>
+      <a className="nav-item" href={info.url} target="_blank" rel="noreferrer" style={{ textDecoration: 'none' }}>
+        <Cloud size={17} />Documents (Nextcloud)<ExternalLink size={13} style={{ marginLeft: 'auto', opacity: .6 }} />
+      </a>
     </div>
   );
 }

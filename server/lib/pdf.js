@@ -33,8 +33,8 @@ function kv(doc, x, y, label, value, w = 230) {
 /** Reçu de paiement officiel */
 export function recuPdf(res, { school, paiement, eleve, classe, situation }) {
   const doc = new PDFDocument({ size: 'A4', margin: 50 });
-  res.setHeader('Content-Type', 'application/pdf');
-  res.setHeader('Content-Disposition', `inline; filename="recu-${paiement.recu_num}.pdf"`);
+  if (res.setHeader) res.setHeader('Content-Type', 'application/pdf');
+  if (res.setHeader) res.setHeader('Content-Disposition', `inline; filename="recu-${paiement.recu_num}.pdf"`);
   doc.pipe(res);
   header(doc, school, 'Reçu de paiement', `N° ${paiement.recu_num}`);
 
@@ -75,8 +75,8 @@ export function recuPdf(res, { school, paiement, eleve, classe, situation }) {
 /** Bulletin scolaire officiel */
 export function bulletinPdf(res, b) {
   const doc = new PDFDocument({ size: 'A4', margin: 50 });
-  res.setHeader('Content-Type', 'application/pdf');
-  res.setHeader('Content-Disposition', `inline; filename="bulletin-${b.eleve.matricule || b.eleve.id}.pdf"`);
+  if (res.setHeader) res.setHeader('Content-Type', 'application/pdf');
+  if (res.setHeader) res.setHeader('Content-Disposition', `inline; filename="bulletin-${b.eleve.matricule || b.eleve.id}.pdf"`);
   doc.pipe(res);
   header(doc, b.school, 'Bulletin scolaire', `${b.trimestre ? `Trimestre ${b.trimestre}` : 'Bilan annuel'} · ${b.annee}`);
 
