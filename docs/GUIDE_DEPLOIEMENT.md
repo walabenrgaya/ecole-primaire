@@ -1,117 +1,89 @@
-# Guide Complet de Déploiement & Mise en Ligne
-## Application Web de Gestion d'École Primaire (Mono-École)
-**Conforme à la Partie IV du Cahier des Charges (Options A, B, C, D et Checklist)**
+# Guide de déploiement
 
----
+L'application est un seul service (API Express qui sert aussi l'interface React compilée) relié à une base PostgreSQL. Au premier démarrage sur une base vide, le schéma et les données de démonstration sont créés automatiquement.
 
-## 1. Vue d'Ensemble des Options de Déploiement
+| Option | Usage | Coût | URL |
+|---|---|---|---|
+| A. Cloudflare Quick Tunnel | Démonstration | Gratuit | `https://xxxx.trycloudflare.com` (change à chaque lancement) |
+| B. Render | Production simple | Gratuit / ~7 $ par mois | `https://edupilot.onrender.com` |
+| B'. Railway | Production simple | ~5 $ par mois | `https://xxx.up.railway.app` |
+| C. Domaine personnalisé | Production professionnelle | ~10–15 € par an | `https://votre-ecole.tn` |
+| **D. Serveur Linux + Nextcloud** (retenu) | Production SaaS avec espace documentaire | 0–6 € par mois | `https://edupilot.<ip>.sslip.io` + `https://cloud.<ip>.sslip.io` |
 
-| Option | Usage | Coût | URL & Caractéristiques |
-| :--- | :---: | :---: | :--- |
-| **A. Cloudflare Quick Tunnel** | Démonstration / Soutenance | Gratuit | URL temporaire `*.trycloudflare.com`, HTTPS automatique, aucun compte requis. |
-| **B. Railway / Render / Zeabur** | Production simple recommandée | Gratuit à ~5 $/mois | URL stable HTTPS, base de données managée, build Git automatique. |
-| **C. Nom de Domaine Personnalisé** | Production professionnelle | ~10-15 €/an | URL institutionnelle `https://ecole-aboukacem-chebbi.com` avec certificat SSL Let's Encrypt. |
-| **D. VPS Classique (Docker)** | Contrôle total & Haute dispo | ~5 à 20 €/mois | Déploiement conteneurisé Docker-compose avec Nginx et MongoDB. |
+## Variables d'environnement
 
----
+| Variable | Obligatoire | Rôle |
+|---|---|---|
+| `DATABASE_URL` | oui | Chaîne de connexion PostgreSQL |
+| `JWT_SECRET` | oui en production | Secret de signature des sessions (longue chaîne aléatoire) |
+| `PUBLIC_URL` | recommandé | URL publique, utilisée dans les liens des reçus envoyés aux parents |
+| `ANNEE_SCOLAIRE` | non | Année courante (défaut `2026-2027`) |
+| `SMTP_HOST`, `SMTP_USER`, `SMTP_PASS`, `SMTP_FROM` | non | Envoi réel des e-mails (SendGrid : `smtp.sendgrid.net`, utilisateur `apikey`) |
+| `AUTO_RELANCES` | non | `false` pour désactiver les relances quotidiennes des impayés |
 
-## 2. Option A – Cloudflare Quick Tunnel (Démonstration Rapide)
+Ne jamais mettre de secret dans le code : `server/.env` est ignoré par Git et par Docker.
 
-Cette option permet de rendre instantanément l'application accessible sur Internet à distance (pour jury, démonstration sur smartphone 4G/5G, tests parents) sans configuration réseau ni ouverture de ports.
+## Option B – Render
 
-### Procédure sous Windows :
-1. Démarrez l'application localement :
-   ```powershell
-   npm run build
-   npm run start
-   ```
-2. Dans un terminal séparé, lancez le script fourni :
-   ```powershell
-   scripts\tunnel.bat
-   ```
-3. Cloudflare génère et affiche une URL publique HTTPS du type :
-   `https://random-words-1234.trycloudflare.com`
-4. Ouvrez cette adresse sur n'importe quel smartphone ou tablette pour accéder au portail.
+1. Pousser le dépôt sur GitHub.
+2. Sur https://dashboard.render.com : **New → Blueprint**, choisir le dépôt. Le fichier `render.yaml` crée le service web (Docker) et la base PostgreSQL, et génère `JWT_SECRET`.
+3. Une fois l'URL connue, renseigner `PUBLIC_URL` (ex. `https://edupilot.onrender.com`) dans *Environment*, puis redéployer.
+4. Vérifier `https://<url>/api/health` puis se connecter avec un compte de démonstration.
 
----
+Offre gratuite : le service s'endort après 15 min d'inactivité (premier chargement ~30 s) et la base gratuite expire après 30 jours – suffisant pour la soutenance.
 
-## 3. Option B – Déploiement sur Railway ou Render (Production Simple)
+## Option B' – Railway
 
-Plateforme PaaS recommandée pour une école sans équipe technique dédiée.
+1. **New Project → Deploy from GitHub repo**.
+2. Ajouter **PostgreSQL** (bouton +). Dans le service web, ajouter `DATABASE_URL=${{Postgres.DATABASE_URL}}`, `JWT_SECRET`, `NODE_ENV=production`, `PUBLIC_URL`.
+3. *Settings → Networking → Generate Domain*.
 
-### Déploiement avec Railway :
-1. Créez un dépôt GitHub et poussez le code du projet :
-   ```bash
-   git init
-   git add .
-   git commit -m "feat: ecole primaire mern app complete"
-   git push origin main
-   ```
-2. Rendez-vous sur [railway.app](https://railway.app) et connectez votre compte GitHub.
-3. Créez un nouveau projet : **Deploy from GitHub repo**.
-4. Ajoutez une base de données **MongoDB** ou **PostgreSQL** via le bouton `+`.
-5. Dans l'onglet **Variables**, renseignez :
-   - `NODE_ENV=production`
-   - `PORT=5000`
-   - `MONGO_URI=${{MongoDB.MONGO_URL}}`
-   - `JWT_SECRET=cle_secrete_ultra_robuste_2026`
-   - `ANNEE_SCOLAIRE=2026-2027`
-   - `FRAIS_SCOLARITE=1200`
-6. Railway construit automatiquement l'application via le [Dockerfile](file:///c:/Users/WE%20TEK/Downloads/ecole-mern/ecole-mern/Dockerfile) multi-stage et fournit un domaine HTTPS stable du type `https://ecole-app.up.railway.app`.
+## Option A – Cloudflare Quick Tunnel (démonstration)
 
----
+```bash
+npm run build          # compile l'interface dans client/dist
+npm start              # sert l'application sur http://localhost:5000
+cloudflared tunnel --url http://localhost:5000
+```
 
-## 4. Option C – Nom de Domaine Personnalisé
+## Option C – Nom de domaine
 
-Permet de lier l'application à un nom de domaine officiel comme `https://ecole-aboukacem-chebbi.com`.
+Acheter le domaine, puis chez Render : *Settings → Custom Domains*, ajouter l'enregistrement `CNAME` indiqué chez le registrar. Le certificat HTTPS est émis automatiquement.
 
-1. **Achat du domaine :** Réserver le nom chez un registrar (OVH, Cloudflare Registrar, Namecheap, etc.) pour environ 10 à 15 €/an.
-2. **Configuration DNS :**
-   - Si hébergé sur Railway/Render : ajouter un enregistrement `CNAME` pointant vers l'URL fournie par la plateforme.
-   - Si hébergé sur VPS : ajouter un enregistrement `A` pointant vers l'adresse IP publique du serveur.
-3. **Certificat SSL :** Activation automatique et gratuite du cadenas vert HTTPS via Let's Encrypt.
+## Option D – Serveur Linux avec Nextcloud (déploiement retenu)
 
----
+Pile Docker (`docker-compose.yml`) sur un seul serveur Ubuntu :
 
-## 5. Option D – VPS Classique avec Docker & Nginx (Contrôle Total)
+| Service | Rôle |
+|---|---|
+| `app` | EduPilot (API + interface) |
+| `db` | PostgreSQL 16 : base `ecole` (application) et base `nextcloud` |
+| `nextcloud` | Espace documentaire : dépôts des élèves, pièces jointes et reçus PDF archivés par établissement (`EduPilot/<code-école>/recus/<année>/`) |
+| `caddy` | Reverse proxy HTTPS, certificats Let's Encrypt automatiques |
 
-Recommandé pour un déploiement autonome sur serveur Linux (Ubuntu 22.04 / 24.04 LTS).
+EduPilot écrit et lit les fichiers dans Nextcloud par WebDAV (réseau Docker interne). Sans variables `NEXTCLOUD_*`, il revient au stockage sur disque.
 
-### Procédure pas à pas :
-1. Provisionner un VPS (OVH, DigitalOcean, AWS Lightsail, etc.)
-2. Installer Docker et Docker-Compose :
-   ```bash
-   sudo apt update && sudo apt install -y docker.io docker-compose
-   ```
-3. Cloner le projet sur le serveur :
-   ```bash
-   git clone <URL_DU_DEPOT> /var/www/ecole-mern
-   cd /var/www/ecole-mern
-   ```
-4. Configurer les variables d'environnement dans `server/.env`.
-5. Démarrer l'ensemble des conteneurs en arrière-plan :
-   ```bash
-   docker-compose up -d --build
-   ```
-6. Vérifier le bon fonctionnement des conteneurs :
-   ```bash
-   docker ps
-   ```
-   Trois services s'exécutent de concert :
-   - `ecole-mongodb` : Base de données persistante
-   - `ecole-app` : Application unifiée (API Express + Client Vite)
-   - `ecole-nginx` : Reverse proxy avec compression gzip et sécurité HTTP
+**Installation (une commande, sur un serveur Ubuntu 22.04/24.04 avec les ports 80 et 443 ouverts) :**
 
----
+```bash
+curl -fsSL https://raw.githubusercontent.com/walabenrgaya/ecole-primaire/refonte-bi-securite/scripts/installer-serveur.sh | sudo bash
+```
 
-## 6. Checklist de Mise en Production (Chapitre 16 du CDC)
+Le script installe Docker, récupère le code dans `/opt/edupilot`, génère les secrets dans `.env` et démarre la pile. Sans nom de domaine, il utilise `sslip.io` à partir de l'adresse IP publique :
 
-Avant toute mise en ligne officielle auprès des parents et élèves, vérifier impérativement :
+- application : `https://edupilot.<ip-avec-tirets>.sslip.io`
+- Nextcloud : `https://cloud.<ip-avec-tirets>.sslip.io` (compte `admin`, mot de passe dans `/opt/edupilot/.env`)
 
-- [x] **Nom de domaine stable :** URL mémorisable et pérenne configurée.
-- [x] **HTTPS Obligatoire :** Certificat SSL actif (protection des données personnelles des enfants, RGPD).
-- [x] **Base de données persistante :** Volume monté ou service MongoDB/PostgreSQL managé avec sauvegardes.
-- [x] **Stockage des fichiers :** Dossier d'uploads configuré pour devoirs et reçus.
-- [x] **Variables d'environnement :** Aucun secret ni mot de passe en clair dans le code source Git.
-- [x] **Sauvegardes automatiques :** Tâche planifiée quotidienne avec rétention minimale de 30 jours (`scripts/backup.sh`).
-- [x] **Champ `annee_scolaire` :** Présent sur l'ensemble des enregistrements pour assurer l'historique pluriannuel.
+Avec un vrai domaine : `APP_DOMAIN=ecole.tn CLOUD_DOMAIN=cloud.ecole.tn` devant la commande, après avoir pointé les deux noms (enregistrements `A`) vers l'IP du serveur.
+
+Serveurs possibles : VPS Hetzner ou OVH (~4–6 € par mois, 2 Go de RAM minimum), Oracle Cloud « Always Free » (VM Ampere A1, gratuite ; ouvrir aussi les ports 80/443 dans la *Security List* du réseau virtuel), ou une VM fournie par l'établissement.
+
+Mise à jour : relancer la même commande (le `.env` existant est conservé). Journaux : `cd /opt/edupilot && docker compose logs -f app nextcloud caddy`.
+
+## Checklist avant mise en ligne
+
+- [ ] HTTPS actif (fourni par Render/Railway, Let's Encrypt sur VPS)
+- [ ] `JWT_SECRET` long et aléatoire, aucun secret dans le dépôt
+- [ ] Base PostgreSQL managée et sauvegardes quotidiennes (voir `PROCEDURE_SAUVEGARDE_RESTAURATION.md`)
+- [ ] `PUBLIC_URL` renseignée
+- [ ] Mots de passe de démonstration remplacés avant toute utilisation réelle

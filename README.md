@@ -1,116 +1,68 @@
-# Application Web de Gestion d'École Primaire (Mono-École)
-> **Projet Conforme à 100% au Cahier des Charges Officiel**  
-> **Auteur du Cadre :** Dr Hamdi Hassen – ISG Sousse  
-> **Année Scolaire de Référence :** 2026-2027  
+# EduPilot – Plateforme SaaS de gestion scolaire
 
----
+Application web **multi-établissements** et **multi-utilisateurs** de gestion d'écoles primaires, avec un module de **Business Intelligence et d'aide à la décision**. Projet pratique *Cloud & Big Data* (ISG Sousse).
 
-## 📌 Présentation Générale
-Cette application web est une solution complète, moderne et responsive (PWA) conçue spécifiquement pour la gestion administrative, pédagogique et financière d'un établissement d'enseignement primaire unique (mono-école).
+| | |
+|---|---|
+| Frontend | React 18 + Vite, PWA installable, graphiques Recharts, icônes Lucide |
+| Backend | Node.js / Express (API REST), JWT, bcrypt, Helmet, limitation de débit |
+| Base de données | PostgreSQL (une base, isolation stricte par `school_id`) |
+| Documents | Reçus et bulletins PDF générés côté serveur (PDFKit) |
+| Notifications | Notifications in-app, e-mail SMTP/SendGrid (simulé et tracé si non configuré) |
+| Déploiement | Serveur Linux Docker : EduPilot + PostgreSQL + **Nextcloud** (stockage des fichiers) + Caddy HTTPS ; aussi Render et Railway |
 
-Contrairement aux plateformes multi-tenants complexes, l'architecture mono-école garantit une isolation parfaite des données, une sécurité maximale conforme au RGPD et des temps de réponse ultra-rapides (< 2s).
+## Fonctionnalités
 
----
+- **SaaS multi-écoles** : console éditeur (création d'établissements, offres, suspension), données isolées par établissement, assistance en contexte d'une école.
+- **7 profils** : super-admin (éditeur), administrateur, directeur, enseignant, comptable, parent, élève – chacun avec ses droits (RBAC appliqué côté serveur en lecture *et* en écriture).
+- **Scolarité** : dossiers élèves, pré-inscription en ligne avec affectation automatique, classes (contrôle des effectifs), matières (coefficients), salles, import/export CSV.
+- **Emploi du temps** avec détection des conflits (enseignant, salle, classe).
+- **Notes et bulletins** : saisie par trimestre, moyenne = 40 % contrôle continu + 60 % examen, moyenne générale pondérée, rang, bulletin PDF.
+- **Absences et retards** avec justification en ligne par les parents et validation.
+- **Finances** : grille tarifaire par année et niveau, paiements, **reçu PDF + message automatique au parent** (montant, date, mode, solde, lien du reçu) avec journal des envois, relances automatiques quotidiennes, dépenses.
+- **Devoirs** : publication (notification élèves/parents), dépôt de fichiers, statut rendu / en retard / noté, correction, corrigé, marquage « vu » par les parents.
+- **Messagerie** : canaux autorisés par rôle, messages envoyés immuables, brouillons, masquage côté destinataire, accusés de lecture, journalisation des consultations ; **annonces** immuables avec correctifs.
+- **Traçabilité et RGPD** : journal d'audit (anciennes / nouvelles valeurs), suppression logique contrôlée, consentement, portabilité (export JSON), droit à l'effacement (anonymisation).
 
-## 👥 Comptes de Démonstration (Fast Login)
-Le portail intègre des boutons de connexion instantanée sur l'écran d'accueil pour tester chaque rôle :
+### Module Business Intelligence (10 tableaux de bord)
 
-| Rôle | Identifiant E-mail | Mot de passe | Périmètre & Accès Principal |
-| :--- | :--- | :--- | :--- |
-| **Direction / Administrateur** | `admin@ecole.tn` | `Admin123!` | Tous les modules, utilisateurs, journal d'audit, annonces |
-| **Enseignant (Français & Arabe)** | `prof.francais@ecole.tn` | `Prof123!` | Notes, devoirs & corrigés, emploi du temps, absences, messages |
-| **Enseignant (Maths & Sciences)** | `prof.maths@ecole.tn` | `Prof123!` | Notes, devoirs & corrigés, emploi du temps, absences, messages |
-| **Comptable / Secrétariat** | `comptable@ecole.tn` | `Comptable123!` | Paiements, reçus officiels, relance impayés 1-clic, inscriptions |
-| **Parent d'élève** | `parent.benali@ecole.tn` | `Parent123!` | Bulletins scolaires officiels PDF, suivi devoirs, justifications, reçus |
-| **Élève** | `eleve.yassine@ecole.tn` | `Eleve123!` | Emploi du temps, devoirs à rendre, dépôt de travail, notes |
+Vue générale · Finances (prévision des recettes) · Pédagogie · Absences (corrélation absences/résultats) · Enseignants (charge, remplacements) · Inscriptions et fidélisation (prévision N+1) · Communication parents · Ressources et emplois du temps · **Alertes précoces** (score de risque échec / abandon / impayé) · **Stratégie** (simulateur de scénarios, comparaison pluriannuelle, recommandations automatiques).
+Détails des indicateurs et des méthodes : [docs/MODULE_BI.md](docs/MODULE_BI.md).
 
----
+## Démarrage local
 
-## 🚀 Démarrage Rapide en Local
+Prérequis : Node.js 20+, PostgreSQL 14+.
 
-### Prérequis :
-- **Node.js** v18+ ou v20+
-- **MongoDB** (Local sur port `27017` ou MongoDB Atlas)
-
-### 1. Installation des dépendances :
 ```bash
-# Dans le dossier client
-cd client && npm install
-
-# Dans le dossier server
-cd ../server && npm install
+cd server && npm install && cp .env.example .env    # renseigner DATABASE_URL
+cd ../client && npm install
+cd .. && npm run seed                                 # crée le schéma + 3 écoles de démonstration
+npm run dev:server                                    # API sur http://localhost:5000
+npm run dev                                           # interface sur http://localhost:5173
 ```
 
-### 2. Initialisation de la base de données (Seed) :
+Au premier démarrage sur une base vide, le serveur crée automatiquement le schéma et les données de démonstration.
+
+Tests automatisés (authentification, isolation multi-écoles, RBAC, règles métier, BI) :
+
 ```bash
-cd server
-npm run seed
-```
-*Le script initialise l'ensemble des classes (CP-A à CM2), matières avec coefficients, salles, élèves, emplois du temps sans conflits, devoirs, paiements et annonces.*
-
-### 3. Lancement des serveurs de développement :
-- **Serveur Backend (API sur port 5000) :**
-  ```bash
-  cd server && npm run dev
-  ```
-- **Client Frontend (Interface sur port 5173) :**
-  ```bash
-  cd client && npm run dev
-  ```
-Accédez au portail : **http://localhost:5173**
-
----
-
-## 🌐 Déploiement & Options du Cahier des Charges
-
-L'application supporte nativement les 4 options de déploiement décrites dans la **Partie IV du Cahier des Charges** :
-
-### Option A – Cloudflare Quick Tunnel (Démonstration Gratuite)
-Génère une URL publique HTTPS temporaire en 1 clic pour tester l'application sur smartphone ou en présentation :
-```powershell
-scripts\tunnel.bat
-```
-*(ou `./scripts/tunnel.sh` sous Linux/Mac)*
-
-### Option B – Railway / Render / Zeabur (Production Simple)
-Configurations incluses prêtes à l'emploi :
-- `railway.json`
-- `render.yaml`
-- Build multi-stage Dockerfile unifié.
-
-### Option C – Nom de Domaine Personnalisé
-Liaison avec nom de domaine officiel (ex: `https://ecole-aboukacem-chebbi.com`) avec certificat SSL automatique Let's Encrypt.
-
-### Option D – VPS Classique avec Docker (Contrôle Total)
-Déploiement conteneurisé avec Nginx reverse proxy et compression gzip :
-```bash
-docker-compose up -d --build
+npm test -- http://localhost:5000
 ```
 
----
+## Comptes de démonstration
 
-## 📚 Livrables Formels Attendus (Chapitre 21)
+Trois établissements de démonstration (Sousse, Tunis, Sfax), chacun avec un compte par profil : `<rôle>@<domaine-école>` (ex. `directeur@chebbi.demo.tn`). La liste complète et les mots de passe temporaires figurent dans le document Word `docs/Identifiants_EduPilot.docx` (généré par `npm run docs`). Aucune donnée personnelle réelle n'est utilisée.
 
-Tous les livrables exigés par le cahier des charges sont documentés dans le dossier [`docs/`](file:///c:/Users/WE%20TEK/Downloads/ecole-mern/ecole-mern/docs) :
+## Déploiement
 
-1. [Spécifications Fonctionnelles Détaillées (User Stories + MoSCoW)](file:///c:/Users/WE%20TEK/Downloads/ecole-mern/ecole-mern/docs/SPECIFICATIONS_FONCTIONNELLES.md)
-2. [Documentation des Maquettes & Design System UI/UX](file:///c:/Users/WE%20TEK/Downloads/ecole-mern/ecole-mern/docs/MAQUETTES_DESIGN_SYSTEM.md)
-3. [Guide Complet de Déploiement (Options A, B, C, D et Checklist)](file:///c:/Users/WE%20TEK/Downloads/ecole-mern/ecole-mern/docs/GUIDE_DEPLOIEMENT.md)
-4. [Guide Utilisateur – Direction / Administrateur](file:///c:/Users/WE%20TEK/Downloads/ecole-mern/ecole-mern/docs/GUIDE_ADMINISTRATEUR.md)
-5. [Guide Utilisateur – Enseignant](file:///c:/Users/WE%20TEK/Downloads/ecole-mern/ecole-mern/docs/GUIDE_ENSEIGNANT.md)
-6. [Guide Utilisateur – Parents & Élèves](file:///c:/Users/WE%20TEK/Downloads/ecole-mern/ecole-mern/docs/GUIDE_PARENT_ELEVE.md)
-7. [Guide Utilisateur – Secrétariat & Comptabilité](file:///c:/Users/WE%20TEK/Downloads/ecole-mern/ecole-mern/docs/GUIDE_COMPTABLE.md)
-8. [Plan de Migration des Données Scolaires (Formats & Procédures CSV)](file:///c:/Users/WE%20TEK/Downloads/ecole-mern/ecole-mern/docs/PLAN_DE_MIGRATION.md)
-9. [Procédure de Sauvegarde et Restauration (Rétention 30 Jours)](file:///c:/Users/WE%20TEK/Downloads/ecole-mern/ecole-mern/docs/PROCEDURE_SAUVEGARDE_RESTAURATION.md)
-10. [Spécification Technique & Modèle de la Base de Données (MCD, MLD & ERD)](file:///c:/Users/WE%20TEK/Downloads/ecole-mern/ecole-mern/docs/SCHEMA_BASE_DE_DONNEES.md)
-    - Schéma SQL DDL PostgreSQL : [`database/schema.sql`](file:///c:/Users/WE%20TEK/Downloads/ecole-mern/ecole-mern/database/schema.sql)
-    - Données de test SQL PostgreSQL : [`database/seed.sql`](file:///c:/Users/WE%20TEK/Downloads/ecole-mern/ecole-mern/database/seed.sql)
+Déploiement retenu : un serveur Linux avec EduPilot et Nextcloud, installé en une commande (`scripts/installer-serveur.sh`). Détails et autres options dans [docs/GUIDE_DEPLOIEMENT.md](docs/GUIDE_DEPLOIEMENT.md).
 
+## Structure
 
----
-
-## 🛠️ Outils & Scripts de Maintenance
-- **Sauvegarde de la base de données :** `scripts\backup.bat` (rétention 30 jours automatique).
-- **Restauration de la base :** `scripts\restore.bat [chemin_archive]`.
-- **Export CSV des élèves :** `node server/scripts/export_csv.js` ou via le bouton direct dans l'interface.
-- **Import CSV d'élèves :** `node server/scripts/import_csv.js [chemin_fichier.csv]`.
+```
+client/src/        App.jsx (navigation), pages/ (écrans), ui/ (composants, graphiques), lib/ (API, formats)
+server/            index.js, config.js, routes/ (core, scolarite, bi), lib/ (crud, scope, bi, metier, pdf, notify, audit)
+server/seed.js     générateur de données de démonstration (3 écoles × 3 années)
+database/schema.sql
+docs/              guides utilisateurs, déploiement, sauvegarde, schéma, module BI
+```
