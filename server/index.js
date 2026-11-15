@@ -14,6 +14,7 @@ import coreRoutes, { UPLOAD_DIR } from './routes/core.js';
 import scolariteRoutes, { relancesAutomatiques } from './routes/scolarite.js';
 import biRoutes from './routes/bi.js';
 import { seedDatabase } from './seed.js';
+import { runMigrations, genererCalendrier } from './calendrier.js';
 import { serveUploads, nextcloud } from './lib/storage.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -95,6 +96,13 @@ async function ensureDatabase() {
   if (!rows[0].t || !rows[0].v) {
     console.log('Base vide ou ancienne version : création du schéma et des données de démonstration...');
     await seedDatabase();
+  }
+  // Migrations idempotentes (ex. calendrier) : ajoutées sans toucher aux données existantes
+  await runMigrations();
+  const { rows: ecoles } = await pool.query('SELECT id FROM schools');
+  for (const e of ecoles) {
+    const n = await genererCalendrier(e.id);
+    if (n) console.log(`Calendrier de démonstration créé pour l'établissement ${e.id} : ${n} évènement(s)`);
   }
 }
 

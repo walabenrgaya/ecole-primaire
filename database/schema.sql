@@ -4,6 +4,7 @@
 -- à un établissement). Historique pluriannuel via annee_scolaire.
 -- =====================================================================
 
+DROP TABLE IF EXISTS evenements CASCADE;
 DROP TABLE IF EXISTS envois CASCADE;
 DROP TABLE IF EXISTS absences_enseignants CASCADE;
 DROP TABLE IF EXISTS depenses CASCADE;

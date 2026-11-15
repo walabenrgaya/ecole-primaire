@@ -34,7 +34,7 @@ export async function readScope(table, u, q, annee) {
   }
 
   if (role === 'comptable') {
-    const ok = [...open, 'eleves', 'paiements', 'frais', 'depenses', 'preinscriptions'];
+    const ok = [...open, 'eleves', 'paiements', 'frais', 'depenses', 'preinscriptions', 'evenements'];
     return ok.includes(table) ? '' : ' AND FALSE';
   }
 
@@ -48,6 +48,8 @@ export async function readScope(table, u, q, annee) {
     if (table === 'devoirs') return ` AND t.enseignant_id = ${q.add(+u.id)}`;
     if (table === 'emplois') return ` AND (t.enseignant_id = ${q.add(+u.id)} OR t.classe_id IN ${inCls()})`;
     if (table === 'absences_enseignants') return ` AND t.enseignant_id = ${q.add(+u.id)}`;
+    // Calendrier : événements de l'établissement + évaluations de ses classes
+    if (table === 'evenements') return ` AND (t.classe_id IS NULL OR t.enseignant_id = ${q.add(+u.id)} OR t.classe_id IN ${inCls()})`;
     return ' AND FALSE';
   }
 
@@ -61,6 +63,7 @@ export async function readScope(table, u, q, annee) {
     if (table === 'eleves') return ` AND t.id IN ${inIds()}`;
     if (['notes', 'absences', 'paiements', 'devoirs_rendus'].includes(table)) return ` AND t.eleve_id IN ${inIds()}`;
     if (['devoirs', 'emplois'].includes(table)) return ` AND t.classe_id IN ${inCls()}`;
+    if (table === 'evenements') return ` AND (t.classe_id IS NULL OR t.classe_id IN ${inCls()})`;
     return ' AND FALSE';
   }
 
@@ -69,8 +72,9 @@ export async function readScope(table, u, q, annee) {
     const eid = eleveIdOf(u);
     if (table === 'eleves') return ` AND t.id = ${q.add(eid)}`;
     if (['notes', 'absences', 'devoirs_rendus'].includes(table)) return ` AND t.eleve_id = ${q.add(eid)}`;
-    if (['devoirs', 'emplois'].includes(table)) {
+    if (['devoirs', 'emplois', 'evenements'].includes(table)) {
       const cid = await eleveClasseId(eid);
+      if (table === 'evenements') return ` AND (t.classe_id IS NULL OR t.classe_id = ${q.add(cid || -1)})`;
       return ` AND t.classe_id = ${q.add(cid || -1)}`;
     }
     return ' AND FALSE';

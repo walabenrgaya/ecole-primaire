@@ -5,6 +5,7 @@ import { Bars, Lines } from '../ui/charts.jsx';
 import { navigate } from '../lib/router.js';
 import { money, pct, num, note, date, dateLong, hhmm, JOURS, moyenneTone, relative } from '../lib/format.js';
 import { openFile } from '../lib/api.js';
+import { ProchainesEcheances } from './Calendrier.jsx';
 
 export default function Accueil() {
   const { user } = useApp();
@@ -144,6 +145,7 @@ function Enseignant() {
             </div>))}</div>
         </Card>
       </div>
+      <div className="mt"><ProchainesEcheances jours={14} max={8} /></div>
     </>
   );
 }
@@ -175,11 +177,14 @@ function Parent() {
       <div className="stack">
         {user.enfants?.length ? user.enfants.map(e => <ChildCard key={e.id} enfant={e} />) : <Empty title="Aucun enfant rattaché" />}
       </div>
-      <Card title="Annonces de l'école">
-        <div className="list">{(an.data || []).slice(0, 5).map(a => (
-          <div className="list-item" key={a.id}><div className="ico"><Megaphone size={16} /></div><div><b className="small">{a.titre}</b><div className="small muted">{relative(a.created_at)}</div><p className="small mt" style={{ marginTop: 4 }}>{a.contenu}</p></div></div>
-        ))}</div>
-      </Card>
+      <div className="stack">
+        <ProchainesEcheances jours={14} max={6} />
+        <Card title="Annonces de l'école">
+          <div className="list">{(an.data || []).slice(0, 4).map(a => (
+            <div className="list-item" key={a.id}><div className="ico"><Megaphone size={16} /></div><div><b className="small">{a.titre}</b><div className="small muted">{relative(a.created_at)}</div><p className="small mt" style={{ marginTop: 4 }}>{a.contenu}</p></div></div>
+          ))}</div>
+        </Card>
+      </div>
     </div>
   );
 }
@@ -204,6 +209,7 @@ function EleveHome() {
       <Card title="Dernières notes">
         <div className="list">{(nt.data || []).slice(0, 6).map(n => <div className="list-item" key={n.id}><div style={{ flex: 1 }}><b className="small">{n.matiere_nom}</b><div className="small muted">{n.eval} · T{n.trimestre}</div></div><Badge tone={moyenneTone(+n.note)}>{note(n.note)}</Badge></div>)}</div>
       </Card>
+      <div className="span-all"><ProchainesEcheances jours={14} max={8} /></div>
     </div>
   );
 }

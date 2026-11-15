@@ -109,5 +109,29 @@ for (const t of ['general', 'finances', 'pedagogie', 'absences', 'enseignants', 
 check('vue plateforme (super-admin)', (await call(tok.super, 'GET', '/bi/plateforme')).data.ecoles?.length >= 2);
 check('super-admin dans le contexte d\'une école', (await call(tok.super, 'GET', '/bi/general', null, { 'x-school-id': '2' })).status === 200);
 
+console.log('\n6. Calendrier scolaire et évaluations');
+const evEleve = (await call(tok.eleve, 'GET', '/evenements')).data;
+const classeEleve = monEleve[0].classe_id;
+check('l\'élève voit les évaluations de sa classe et les événements de l\'école', evEleve.length > 0 && evEleve.every(e => e.classe_id === null || e.classe_id === classeEleve));
+check('le calendrier contient contrôles, examens et vacances', ['Contrôle', 'Examen', 'Vacances'].every(c => evEleve.some(e => e.categorie === c)));
+const evParent = (await call(tok.parent, 'GET', '/evenements')).data;
+const clsEnfants = new Set(enfants.map(e => e.classe_id));
+check('le parent ne voit que les classes de ses enfants', evParent.every(e => e.classe_id === null || clsEnfants.has(e.classe_id)));
+check('un parent ne peut pas planifier', (await call(tok.parent, 'POST', '/evenements', { categorie: 'Contrôle', titre: 'x', date: '2027-01-20' })).status === 403);
+const emploisProf = (await call(tok.enseignant, 'GET', '/emplois')).data;
+const meId = (await call(tok.enseignant, 'GET', '/auth/me')).data.id;
+const cours = emploisProf.find(e => String(e.enseignant_id) === meId);
+const autreClasse = (await call(tok.admin, 'GET', '/classes')).data.find(c => !emploisProf.some(e => e.classe_id === c.id));
+const futur = '2027-01-26';
+const plan = await call(tok.enseignant, 'POST', '/evenements', { categorie: 'Contrôle', titre: 'Contrôle test', date: futur, debut: '15:45', fin: '16:30', classe_id: cours.classe_id, matiere_id: cours.matiere_id });
+check('l\'enseignant planifie un contrôle pour sa classe', plan.status === 201, JSON.stringify(plan.data));
+check('chevauchement refusé pour la même classe', (await call(tok.enseignant, 'POST', '/evenements', { categorie: 'Examen', titre: 'x', date: futur, debut: '16:00', fin: '17:00', classe_id: cours.classe_id, matiere_id: cours.matiere_id })).status === 409);
+check('évaluation pendant les vacances refusée', (await call(tok.enseignant, 'POST', '/evenements', { categorie: 'Contrôle', titre: 'x', date: '2026-12-23', classe_id: cours.classe_id, matiere_id: cours.matiere_id })).status === 409);
+if (autreClasse) check('évaluation dans une autre classe refusée', (await call(tok.enseignant, 'POST', '/evenements', { categorie: 'Contrôle', titre: 'x', date: futur, classe_id: autreClasse.id, matiere_id: cours.matiere_id })).status === 403);
+check('un enseignant ne publie pas d\'événement d\'établissement', (await call(tok.enseignant, 'POST', '/evenements', { categorie: 'Événement', titre: 'x', date: futur })).status === 403);
+const fete = await call(tok.directeur, 'POST', '/evenements', { categorie: 'Événement', titre: 'Sortie test', date: futur });
+check('la direction publie un événement pour tout l\'établissement', fete.status === 201 && fete.data.classe_id === null);
+for (const x of [plan.data, fete.data]) if (x?.id) await call(tok.admin, 'DELETE', `/evenements/${x.id}`);
+
 console.log(`\nRésultat : ${ok} réussi(s), ${ko} échec(s)`);
 process.exit(ko ? 1 : 0);

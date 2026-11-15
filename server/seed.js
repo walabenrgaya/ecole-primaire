@@ -11,6 +11,7 @@ import bcrypt from 'bcryptjs';
 import pool from './db.js';
 import { AN } from './config.js';
 import { ECOLES, SUPERADMIN, MOTS_DE_PASSE, emailDemo } from './demo-accounts.js';
+import { runMigrations, genererCalendrier } from './calendrier.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const NIVEAUX = ['CP', 'CE1', 'CE2', 'CM1', 'CM2'];
@@ -492,12 +493,14 @@ export async function seedDatabase({ log = console.log } = {}) {
   try {
     await client.query('BEGIN');
     await client.query(fs.readFileSync(path.resolve(__dirname, '../database/schema.sql'), 'utf8'));
+    await runMigrations(client);
     const hashes = {};
     for (const [role, pwd] of Object.entries(MOTS_DE_PASSE)) hashes[role] = await bcrypt.hash(pwd, 10);
     await client.query(`INSERT INTO users (school_id, nom, email, hash, role, last_login) VALUES (NULL, $1, $2, $3, 'superadmin', NOW())`, [SUPERADMIN.nom, SUPERADMIN.email, hashes.superadmin]);
     for (const [i, E] of ECOLES.entries()) {
       const r = await genererEcole(client, E, i, hashes, now);
-      log(`✓ ${r.school.name} : ${r.nbEleves} élèves, ${r.nbNotes} notes, ${r.nbPaiements} paiements, ${r.nbMessages} messages`);
+      const nbEv = await genererCalendrier(r.school.id, client);
+      log(`✓ ${r.school.name} : ${r.nbEleves} élèves, ${r.nbNotes} notes, ${r.nbPaiements} paiements, ${r.nbMessages} messages, ${nbEv} évènements au calendrier`);
     }
     await client.query('COMMIT');
   } catch (e) {

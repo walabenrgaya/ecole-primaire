@@ -164,6 +164,22 @@ export const ENTITIES = {
     select: 'SELECT t.* FROM annonces t',
     order: 't.created_at DESC'
   },
+  // Calendrier scolaire : évaluations planifiées et événements de l'établissement
+  evenements: {
+    annee: true,
+    cols: ['categorie', 'titre', 'description', 'classe_id', 'matiere_id', 'enseignant_id', 'salle_id', 'date', 'date_fin', 'debut', 'fin', 'trimestre'],
+    required: ['categorie', 'titre', 'date'],
+    write: ['admin', 'directeur', 'enseignant'],
+    refs: { classe_id: 'classes', matiere_id: 'matieres', enseignant_id: 'users', salle_id: 'salles' },
+    select: `SELECT t.*, ${CLASSE_LABEL} AS classe_nom, (SELECT m.nom FROM matieres m WHERE m.id = t.matiere_id) AS matiere_nom,
+      (SELECT u.nom FROM users u WHERE u.id = t.enseignant_id) AS enseignant_nom, (SELECT s.nom FROM salles s WHERE s.id = t.salle_id) AS salle_nom
+      FROM evenements t`,
+    order: 't.date, t.debut NULLS FIRST',
+    filters: ['classe_id', 'matiere_id', 'categorie', 'trimestre'],
+    // Plage de dates : ?du=AAAA-MM-JJ&au=AAAA-MM-JJ (un événement sur plusieurs jours est inclus s'il chevauche la plage)
+    extraFilters: { du: 'COALESCE(t.date_fin, t.date) >= $V', au: 't.date <= $V' },
+    limit: 5000
+  },
   absences_enseignants: {
     annee: true,
     cols: ['enseignant_id', 'date', 'nb_heures', 'motif', 'remplacant_id'],
@@ -220,6 +236,54 @@ async function checkTeacher(table, u, data, existing) {
     if (data.classe_id && !classes.includes(+data.classe_id)) fail(403, 'Cette classe ne fait pas partie de vos classes');
     data.enseignant_id = +u.id;
   }
+  if (table === 'evenements') {
+    // Un enseignant planifie uniquement des évaluations, pour ses classes, et ne modifie que les siennes
+    if (existing && +existing.enseignant_id !== +u.id) fail(403, 'Vous ne pouvez modifier que les évaluations que vous avez planifiées');
+    const categorie = data.categorie ?? existing?.categorie;
+    if (!EVALUATIONS.includes(categorie)) fail(403, 'Seule la direction peut publier des événements ou des vacances');
+    const classe = data.classe_id ?? existing?.classe_id;
+    if (!classes.includes(+classe)) fail(403, 'Cette classe ne fait pas partie de vos classes');
+    data.enseignant_id = +u.id;
+  }
+}
+
+export const EVALUATIONS = ['Contrôle', 'Devoir surveillé', 'Examen', 'Oral de synthèse'];
+const MAX_EVALUATIONS_PAR_JOUR = 2;
+
+/**
+ * Règles du calendrier : une évaluation concerne une classe et une matière,
+ * ne tombe pas pendant les vacances, ne chevauche pas une autre évaluation
+ * de la même classe, et une classe n'a pas plus de 2 évaluations le même jour.
+ */
+async function controleEvaluation(data, schoolId, currentId) {
+  if (!EVALUATIONS.includes(data.categorie)) return;
+  if (!data.classe_id) fail(400, 'Une évaluation doit être rattachée à une classe');
+  if (!data.matiere_id) fail(400, 'Une évaluation doit être rattachée à une matière');
+  const date = String(data.date).slice(0, 10);
+  const vac = await one(
+    `SELECT titre FROM evenements WHERE school_id = $1 AND deleted = FALSE AND categorie = 'Vacances' AND $2::date BETWEEN date AND COALESCE(date_fin, date) LIMIT 1`,
+    [schoolId, date]);
+  if (vac) fail(409, `Date impossible : ${vac.titre.toLowerCase()}`);
+  const memeJour = (await pool.query(
+    `SELECT t.titre, t.debut, t.fin FROM evenements t WHERE t.school_id = $1 AND t.deleted = FALSE AND t.classe_id = $2 AND t.date = $3
+       AND t.categorie = ANY($4) AND t.id <> COALESCE($5, -1)`,
+    [schoolId, data.classe_id, date, EVALUATIONS, currentId || null])).rows;
+  const hm = v => (v ? String(v).slice(0, 5) : null);
+  for (const e of memeJour) {
+    const chevauche = !data.debut || !data.fin || !e.debut || !e.fin || (hm(data.debut) < hm(e.fin) && hm(e.debut) < hm(data.fin));
+    if (chevauche) fail(409, `Conflit : la classe a déjà « ${e.titre} »${e.debut ? ` de ${hm(e.debut)} à ${hm(e.fin)}` : ''} ce jour-là`);
+  }
+  if (memeJour.length >= MAX_EVALUATIONS_PAR_JOUR) fail(409, `La classe a déjà ${memeJour.length} évaluations ce jour-là (maximum ${MAX_EVALUATIONS_PAR_JOUR})`);
+}
+
+/** Élèves (comptes) et parents d'une classe, pour les notifications. */
+async function destinatairesClasse(classeId) {
+  const { rows } = await pool.query(
+    `SELECT e.parent_id, (SELECT id FROM users WHERE eleve_id = e.id AND role = 'eleve' LIMIT 1) AS compte_eleve
+     FROM eleves e WHERE e.classe_id = $1 AND e.deleted = FALSE AND e.statut = 'inscrit'`, [classeId]);
+  const dest = new Set();
+  for (const e of rows) { if (e.parent_id) dest.add(e.parent_id); if (e.compte_eleve) dest.add(e.compte_eleve); }
+  return [...dest];
 }
 
 export async function checkCapacite(classeId, eleveId = null) {
@@ -256,6 +320,15 @@ async function beforeWrite(table, u, data, existing, schoolId) {
     if (conflit) fail(409, `Conflit d'horaire : ${conflit}`);
   }
   if (table === 'notes' && data.note != null && (data.note < 0 || data.note > 20)) fail(400, 'La note doit être comprise entre 0 et 20');
+  if (table === 'evenements') {
+    const merged = { ...existing, ...data };
+    if (merged.date && !data.trimestre && EVALUATIONS.includes(merged.categorie)) {
+      const mois = new Date(merged.date).getMonth();
+      data.trimestre = mois >= 8 ? 1 : mois <= 2 ? 2 : 3;
+      merged.trimestre = data.trimestre;
+    }
+    await controleEvaluation(merged, schoolId, existing?.id);
+  }
 }
 
 async function afterCreate(table, u, row) {
@@ -268,13 +341,14 @@ async function afterCreate(table, u, row) {
       [row.school_id, `${row.importante ? 'Important : ' : 'Annonce : '}${row.titre}`.slice(0, 150), row.contenu.slice(0, 200), roles, +u.id]
     );
   }
+  if (table === 'evenements' && EVALUATIONS.includes(row.categorie)) {
+    const quand = `${new Date(row.date).toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' })}${row.debut ? ` à ${String(row.debut).slice(0, 5)}` : ''}`;
+    for (const id of await destinatairesClasse(row.classe_id)) {
+      await notify(id, `${row.categorie} planifié`, `${row.titre} – ${quand}`, { type: 'evaluation', lien: '/calendrier', schoolId: row.school_id });
+    }
+  }
   if (table === 'devoirs') {
-    const cible = await pool.query(
-      `SELECT e.id, e.parent_id, (SELECT id FROM users WHERE eleve_id = e.id AND role = 'eleve' LIMIT 1) AS compte_eleve
-       FROM eleves e WHERE e.classe_id = $1 AND e.deleted = FALSE AND e.statut = 'inscrit'`, [row.classe_id]);
-    const dest = new Set();
-    for (const e of cible.rows) { if (e.parent_id) dest.add(e.parent_id); if (e.compte_eleve) dest.add(e.compte_eleve); }
-    for (const id of dest) {
+    for (const id of await destinatairesClasse(row.classe_id)) {
       await notify(id, 'Nouveau devoir publié', `${row.titre} – à rendre le ${new Date(row.date_remise).toLocaleDateString('fr-FR')}`, { type: 'devoir', lien: '/devoirs', schoolId: row.school_id });
     }
   }

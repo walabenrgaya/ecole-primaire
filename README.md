@@ -20,6 +20,7 @@ Application web **multi-établissements** et **multi-utilisateurs** de gestion d
 - **Notes et bulletins** : saisie par trimestre, moyenne = 40 % contrôle continu + 60 % examen, moyenne générale pondérée, rang, bulletin PDF.
 - **Absences et retards** avec justification en ligne par les parents et validation.
 - **Finances** : grille tarifaire par année et niveau, paiements, **reçu PDF + message automatique au parent** (montant, date, mode, solde, lien du reçu) avec journal des envois, relances automatiques quotidiennes, dépenses.
+- **Calendrier scolaire** : vue mois / semaine / « à venir » réunissant devoirs à rendre, contrôles, devoirs surveillés, examens, oraux de synthèse, événements et vacances ; planification des évaluations par les enseignants (pas pendant les vacances, sans chevauchement, 2 par jour et par classe au maximum) avec notification des élèves et des parents.
 - **Devoirs** : publication (notification élèves/parents), dépôt de fichiers, statut rendu / en retard / noté, correction, corrigé, marquage « vu » par les parents.
 - **Messagerie** : canaux autorisés par rôle, messages envoyés immuables, brouillons, masquage côté destinataire, accusés de lecture, journalisation des consultations ; **annonces** immuables avec correctifs.
 - **Traçabilité et RGPD** : journal d'audit (anciennes / nouvelles valeurs), suppression logique contrôlée, consentement, portabilité (export JSON), droit à l'effacement (anonymisation).

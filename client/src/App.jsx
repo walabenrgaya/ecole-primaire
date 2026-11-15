@@ -2,7 +2,7 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
   GraduationCap, LayoutDashboard, Users, School, BookOpen, DoorOpen, CalendarDays, ClipboardList, FileText,
   CalendarX, Wallet, NotebookPen, Megaphone, MessagesSquare, UserCog, ScrollText, Building2, Bell, Moon, Sun,
-  LogOut, Menu, KeyRound, ChevronRight, BarChart3, UserPlus, LineChart, ShieldCheck, Cloud, ExternalLink
+  LogOut, Menu, KeyRound, ChevronRight, BarChart3, UserPlus, LineChart, ShieldCheck, Cloud, ExternalLink, CalendarRange
 } from 'lucide-react';
 import { api, get, post, setUnauthorizedHandler, openFile } from './lib/api.js';
 import { navigate, useLocation } from './lib/router.js';
@@ -25,6 +25,7 @@ import Personnel from './pages/Personnel.jsx';
 import Journal from './pages/Journal.jsx';
 import Saas from './pages/Saas.jsx';
 import BI from './pages/BI.jsx';
+import Calendrier from './pages/Calendrier.jsx';
 
 /* --------------------------- Navigation par rôle --------------------------- */
 const NAV = [
@@ -42,6 +43,7 @@ const NAV = [
     { path: '/emplois', label: 'Emploi du temps', icon: CalendarDays, roles: '*' }
   ] },
   { group: 'Pédagogie', items: [
+    { path: '/calendrier', label: 'Calendrier', icon: CalendarRange, roles: '*' },
     { path: '/notes', label: 'Notes', icon: ClipboardList, roles: ['admin', 'directeur', 'enseignant', 'superadmin'] },
     { path: '/bulletins', label: 'Bulletins', icon: FileText, roles: ['admin', 'directeur', 'enseignant', 'parent', 'eleve', 'superadmin'] },
     { path: '/absences', label: 'Absences', icon: CalendarX, roles: ['admin', 'directeur', 'enseignant', 'parent', 'eleve', 'superadmin'] },
@@ -64,7 +66,7 @@ const NAV = [
 const ROUTES = [
   ['/bi', BI], ['/plateforme', Saas], ['/eleves', Eleves], ['/preinscriptions', Preinscriptions], ['/classes', Classes],
   ['/matieres', Matieres], ['/salles', Salles], ['/emplois', Emplois], ['/notes', Notes], ['/bulletins', Bulletins],
-  ['/absences', Absences], ['/finances', Finances], ['/devoirs', Devoirs], ['/messages', Messages], ['/annonces', Annonces],
+  ['/absences', Absences], ['/finances', Finances], ['/devoirs', Devoirs], ['/calendrier', Calendrier], ['/messages', Messages], ['/annonces', Annonces],
   ['/personnel', Personnel], ['/journal', Journal]
 ];
 
