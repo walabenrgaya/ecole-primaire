@@ -1,0 +1,11 @@
+**/node_modules
+**/.env
+**/.env.*
+!server/.env.example
+server/uploads/*
+client/dist
+.git
+.claude
+backups
+*.log
+docs/*.docx

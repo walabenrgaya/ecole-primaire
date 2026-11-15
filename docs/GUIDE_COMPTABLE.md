@@ -12,7 +12,7 @@ Le comptable a la responsabilité exclusive de :
 - La relance automatique des familles débitrices.
 - L'instruction administrative des demandes de pré-inscription.
 
-**Identifiant par défaut :** `comptable@ecole.tn` / `Comptable123!`
+**Identifiants de démonstration :** voir `Identifiants_EduPilot.docx` (compte `comptable@<domaine-école>`).
 
 ---
 

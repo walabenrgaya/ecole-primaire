@@ -7,12 +7,11 @@
 ## 1. Accès au Portail Scolaire
 
 ### Pour les Parents :
-- **Identifiant par défaut :** `parent.benali@ecole.tn` / `Parent123!`
+- **Identifiants de démonstration :** voir le document `Identifiants_EduPilot.docx` (comptes `parent@…` et `eleve@…` de chaque établissement).
 - Vous pouvez suivre l'ensemble de vos enfants scolarisés dans l'établissement depuis un seul compte.
 - **Accès Mobile (PWA) :** Sur votre smartphone, ouvrez l'application dans votre navigateur et sélectionnez "Ajouter à l'écran d'accueil" pour installer l'application officielle de l'école.
 
 ### Pour les Élèves :
-- **Identifiant par défaut :** `eleve.yassine@ecole.tn` / `Eleve123!`
 - Interface simplifiée et épurée adaptée aux enfants du primaire.
 
 ---

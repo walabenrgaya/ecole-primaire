@@ -6,8 +6,7 @@
 
 ## 1. Connexion & Accès Enseignant
 - **Identifiants de démonstration :**
-  - M. Ben Salem (Français & Arabe) : `prof.francais@ecole.tn` / `Prof123!`
-  - Mme Karray (Maths & Sciences) : `prof.maths@ecole.tn` / `Prof123!`
+  - Voir le document `Identifiants_EduPilot.docx` (compte `enseignant@<domaine-école>` de chaque établissement).
 - **Navigation dédiée :** Tableau de bord, Notes, Devoirs, Emploi du temps, Absences, Messagerie, Annonces.
 
 ---
