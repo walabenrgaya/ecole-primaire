@@ -7,7 +7,7 @@ import { PALETTE } from '../ui/charts.jsx';
 
 export default function Emplois() {
   const { user, toast, confirm } = useApp();
-  const admin = ['admin', 'superadmin'].includes(user.role);
+  const admin = user.role === 'admin';
   const em = useFetch('/emplois');
   const classes = useFetch('/classes');
   const users = useFetch(['admin', 'directeur', 'superadmin'].includes(user.role) ? '/users?role=enseignant' : null);

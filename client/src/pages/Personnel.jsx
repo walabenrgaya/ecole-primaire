@@ -20,7 +20,7 @@ export default function Personnel() {
 
 function Comptes() {
   const { user, toast, confirm } = useApp();
-  const admin = ['admin', 'superadmin'].includes(user.role);
+  const admin = user.role === 'admin';
   const [role, setRole] = useState('');
   const list = useFetch(`/users${role ? `?role=${role}` : ''}`);
   const eleves = useFetch(admin ? '/eleves?statut=inscrit' : null);

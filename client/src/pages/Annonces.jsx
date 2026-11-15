@@ -11,7 +11,7 @@ export default function Annonces() {
   const list = useFetch('/annonces');
   const [form, setForm] = useState(null);
   const [error, setError] = useState(null);
-  const peutPublier = ['admin', 'directeur', 'superadmin'].includes(user.role);
+  const peutPublier = ['admin', 'directeur'].includes(user.role);
 
   const publier = async e => {
     e.preventDefault();

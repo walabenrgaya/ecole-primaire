@@ -43,11 +43,11 @@ r.get('/devoirs/:id/rendus', auth, needSchool, wrap(async (req, res) => {
 }));
 
 // Dépôt (ou remplacement avant la date limite) du travail de l'élève
-r.post('/devoirs/:id/rendre', auth, only('eleve', 'parent'), needSchool, upload.single('fichier'), wrap(async (req, res) => {
+// Seul l'élève rend son travail (le parent consulte et marque « vu »)
+r.post('/devoirs/:id/rendre', auth, only('eleve'), needSchool, upload.single('fichier'), wrap(async (req, res) => {
   const d = await one('SELECT * FROM devoirs WHERE id = $1 AND school_id = $2 AND deleted = FALSE', [toId(req.params.id), req.u.schoolId]);
   if (!d) fail(404, 'Devoir introuvable');
-  let eleveId = req.u.role === 'eleve' ? eleveIdOf(req.u) : toId(req.body.eleve_id);
-  if (req.u.role === 'parent' && !(await childrenOf(req.u)).some(k => k.id === eleveId)) fail(403, 'Cet élève n\'est pas votre enfant');
+  const eleveId = eleveIdOf(req.u); // toujours le compte de l'élève connecté
   const eleve = await one('SELECT * FROM eleves WHERE id = $1 AND school_id = $2 AND deleted = FALSE', [eleveId, req.u.schoolId]);
   if (!eleve || eleve.classe_id !== d.classe_id) fail(403, 'Ce devoir ne concerne pas cet élève');
   const limite = new Date(d.date_remise); limite.setHours(23, 59, 59, 999);
@@ -74,7 +74,7 @@ r.post('/devoirs/:id/rendre', auth, only('eleve', 'parent'), needSchool, upload.
   res.json(row);
 }));
 
-r.put('/devoirs_rendus/:id/noter', auth, only('enseignant', 'admin'), needSchool, wrap(async (req, res) => {
+r.put('/devoirs_rendus/:id/noter', auth, only('enseignant'), needSchool, wrap(async (req, res) => {
   const rendu = await one(
     `SELECT r.*, d.enseignant_id, d.titre, d.bareme AS bareme_devoir FROM devoirs_rendus r JOIN devoirs d ON d.id = r.devoir_id
      WHERE r.id = $1 AND r.school_id = $2`, [toId(req.params.id), req.u.schoolId]);
@@ -102,7 +102,7 @@ r.post('/devoirs_rendus/:id/vu', auth, only('parent'), needSchool, wrap(async (r
 }));
 
 // Publication du corrigé (visible après la date de remise) : notification élèves + parents
-r.post('/devoirs/:id/corrige', auth, only('enseignant', 'admin'), needSchool, wrap(async (req, res) => {
+r.post('/devoirs/:id/corrige', auth, only('enseignant'), needSchool, wrap(async (req, res) => {
   const d = await one('SELECT * FROM devoirs WHERE id = $1 AND school_id = $2 AND deleted = FALSE', [toId(req.params.id), req.u.schoolId]);
   if (!d) fail(404, 'Devoir introuvable');
   if (req.u.role === 'enseignant' && +d.enseignant_id !== +req.u.id) fail(403, 'Ce devoir ne vous appartient pas');
@@ -129,6 +129,13 @@ r.post('/absences/:id/justifier', auth, only('parent'), needSchool, wrap(async (
 
 r.post('/absences/:id/valider', auth, only('admin', 'enseignant', 'directeur'), needSchool, wrap(async (req, res) => {
   const ok = !!req.body.validee;
+  const abs = await one(
+    `SELECT a.statut, e.classe_id FROM absences a JOIN eleves e ON e.id = a.eleve_id WHERE a.id = $1 AND a.school_id = $2 AND a.deleted = FALSE`,
+    [toId(req.params.id), req.u.schoolId]);
+  if (!abs) fail(404, 'Absence introuvable');
+  // Un enseignant ne statue que sur les absences des élèves de ses classes
+  if (req.u.role === 'enseignant' && !(await teacherClassIds(req.u, AN)).includes(abs.classe_id)) fail(403, 'Cet élève n\'appartient pas à vos classes');
+  if (abs.statut !== 'En attente de validation') fail(409, 'Aucune justification en attente pour cette absence');
   const { rows } = await pool.query(
     `UPDATE absences SET justifiee = $1, statut = $2 WHERE id = $3 AND school_id = $4 AND deleted = FALSE RETURNING *`,
     [ok, ok ? 'Justifiée' : 'Rejetée', toId(req.params.id), req.u.schoolId]);
@@ -312,7 +319,7 @@ async function listeImpayes(schoolId) {
   return rows.map(x => ({ ...x, du: +x.du, paye: +x.paye, reste: Math.max(0, +x.du - +x.paye) })).filter(x => x.reste > 0).sort((a, b) => b.reste - a.reste);
 }
 
-r.get('/finances/impayes', auth, only('admin', 'comptable', 'directeur'), needSchool, wrap(async (req, res) => {
+r.get('/finances/impayes', auth, only('admin', 'comptable', 'directeur', 'superadmin'), needSchool, wrap(async (req, res) => {
   res.json(await listeImpayes(req.u.schoolId));
 }));
 

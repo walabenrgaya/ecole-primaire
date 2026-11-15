@@ -59,7 +59,7 @@ export default function Calendrier() {
   const [types, setTypes] = useState(() => new Set(Object.keys(CATEGORIES)));
   const [detail, setDetail] = useState(null);
   const [form, setForm] = useState(null);
-  const peutPlanifier = ['admin', 'directeur', 'enseignant', 'superadmin'].includes(user.role);
+  const peutPlanifier = ['admin', 'directeur', 'enseignant'].includes(user.role);
 
   const classesTriees = useMemo(() => (classes.data || []).sort((a, b) => NIVEAUX.indexOf(a.niveau) - NIVEAUX.indexOf(b.niveau) || a.section.localeCompare(b.section)), [classes.data]);
   const classeEnfant = user.role === 'parent' && enfant ? user.enfants.find(e => String(e.id) === enfant)?.classe_id : null;
@@ -72,7 +72,7 @@ export default function Calendrier() {
     ? `${MOIS[ref.getMonth()]} ${ref.getFullYear()}`
     : `Semaine du ${lundi(ref).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long' })}`;
   const toggle = t => setTypes(s => { const n = new Set(s); n.has(t) ? n.delete(t) : n.add(t); return n; });
-  const planifier = date => setForm({ categorie: 'Contrôle', titre: '', date: cle(date || new Date()), debut: '08:30', fin: '09:15', classe_id: classe || '', matiere_id: '', salle_id: '', description: '', date_fin: '' });
+  const planifier = date => setForm({ categorie: user.role === 'enseignant' ? 'Contrôle' : 'Examen', titre: '', date: cle(date || new Date()), debut: '08:30', fin: '09:15', classe_id: classe || '', matiere_id: '', salle_id: '', description: '', date_fin: '' });
 
   if (loading) return <Loading />;
 
@@ -226,7 +226,11 @@ export function LigneEcheance({ it, onClick }) {
 /* ------------------------------ Détail ------------------------------ */
 function Detail({ item, onClose, onEdit, onDeleted }) {
   const { user, toast, confirm } = useApp();
-  const modifiable = item.source === 'evenement' && (['admin', 'directeur', 'superadmin'].includes(user.role) || (user.role === 'enseignant' && String(item.enseignant_id) === user.id));
+  const direction = ['admin', 'directeur'].includes(user.role);
+  const auteur = user.role === 'enseignant' && String(item.enseignant_id) === user.id;
+  // L'enseignant gère ses contrôles ; la direction gère examens, oraux, événements et vacances, et peut retirer un contrôle
+  const modifiable = item.source === 'evenement' && (auteur || (direction && ['Examen', 'Oral de synthèse', 'Événement', 'Vacances'].includes(item.type)));
+  const supprimable = item.source === 'evenement' && (auteur || direction);
   const supprimer = async () => {
     if (!(await confirm({ title: 'Retirer du calendrier', message: `Supprimer « ${item.titre} » ? Les élèves et parents ne le verront plus.`, danger: true, confirmLabel: 'Supprimer' }))) return;
     try { await api(`/evenements/${item.id}`, { method: 'DELETE' }); toast('Retiré du calendrier'); onDeleted(); } catch (e) { toast(e.message, 'error'); }
@@ -234,7 +238,7 @@ function Detail({ item, onClose, onEdit, onDeleted }) {
   return (
     <Modal title={item.titre} onClose={onClose} size="narrow"
       footer={<>
-        {modifiable && <button className="btn danger" style={{ marginRight: 'auto' }} onClick={supprimer}><Trash2 size={15} />Supprimer</button>}
+        {supprimable && <button className="btn danger" style={{ marginRight: 'auto' }} onClick={supprimer}><Trash2 size={15} />Supprimer</button>}
         {item.source === 'devoir' && <button className="btn" onClick={() => navigate('/devoirs')}>Voir le devoir<ArrowRight size={14} /></button>}
         {modifiable && <button className="btn" onClick={() => onEdit(item)}><Pencil size={15} />Modifier</button>}
         <button className="btn primary" onClick={onClose}>Fermer</button>
@@ -262,7 +266,8 @@ function Formulaire({ initial, classes, onClose, onSaved }) {
   const [error, setError] = useState(null);
   const set = (k, v) => setF(x => ({ ...x, [k]: v }));
   const evaluation = EVALUATIONS.includes(f.categorie);
-  const categories = user.role === 'enseignant' ? EVALUATIONS : [...EVALUATIONS, 'Événement', 'Vacances'];
+  // L'enseignant organise ses contrôles ; la direction organise examens, oraux, événements et vacances
+  const categories = user.role === 'enseignant' ? ['Contrôle', 'Devoir surveillé'] : ['Examen', 'Oral de synthèse', 'Événement', 'Vacances'];
 
   // Un enseignant ne voit que ses classes
   const mesClasses = user.role === 'enseignant'
@@ -308,7 +313,7 @@ function Formulaire({ initial, classes, onClose, onSaved }) {
             <Field label="Matière" required full>
               <select value={f.matiere_id || ''} onChange={e => { set('matiere_id', e.target.value); const m = matieres.data?.find(x => String(x.id) === e.target.value); if (m && !f.titre) set('titre', `${f.categorie} – ${m.nom}`); }} required>
                 <option value="">Sélectionner…</option>
-                {(matieres.data || []).map(m => <option key={m.id} value={m.id}>{m.nom}</option>)}
+                {(matieres.data || []).filter(m => user.role !== 'enseignant' || (emplois.data || []).some(e => String(e.enseignant_id) === user.id && String(e.classe_id) === String(f.classe_id) && e.matiere_id === m.id)).map(m => <option key={m.id} value={m.id}>{m.nom}</option>)}
               </select>
             </Field>
           )}

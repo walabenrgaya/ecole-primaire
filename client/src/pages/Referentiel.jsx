@@ -3,7 +3,7 @@ import { useApp, PageHead, Badge, Meter } from '../ui/core.jsx';
 import { CrudTable } from '../ui/Crud.jsx';
 import { NIVEAUX, pct } from '../lib/format.js';
 
-const isAdmin = u => ['admin', 'superadmin'].includes(u.role);
+const isAdmin = u => u.role === 'admin';
 const enseignant = { ref: '/users?role=enseignant', label_of: u => `${u.nom}${u.specialite ? ` – ${u.specialite}` : ''}` };
 
 export function Classes() {

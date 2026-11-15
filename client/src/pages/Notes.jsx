@@ -18,7 +18,7 @@ export default function Notes() {
   const [trimestre, setTrimestre] = useState(1);
   const [edits, setEdits] = useState({});
   const [saving, setSaving] = useState(false);
-  const canWrite = ['admin', 'enseignant', 'superadmin'].includes(user.role);
+  const canWrite = user.role === 'enseignant'; // la direction consulte, seul l'enseignant de la matière note
 
   // Un enseignant ne voit que les classes / matières qu'il enseigne
   const mesClasses = useMemo(() => {

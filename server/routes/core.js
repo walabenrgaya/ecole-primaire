@@ -244,7 +244,6 @@ async function destinataires(u) {
   switch (u.role) {
     case 'admin':
     case 'directeur':
-    case 'superadmin':
       return all(`${base} AND role IN ('admin','directeur','enseignant','comptable','parent','eleve') ORDER BY role, nom`, p);
     case 'comptable':
       return all(`${base} AND role IN ('admin','directeur','parent') ORDER BY role, nom`, p);
@@ -398,17 +397,17 @@ r.post('/upload', auth, upload.single('file'), wrap(async (req, res) => {
 }));
 
 // Espace documentaire Nextcloud (lien affiché à l'administration)
-r.get('/stockage', auth, only('admin', 'directeur', 'comptable'), (req, res) => res.json(nextcloudInfo()));
+r.get('/stockage', auth, only('admin', 'directeur', 'comptable', 'superadmin'), (req, res) => res.json(nextcloudInfo()));
 
 /* --------------------------- Journal d'audit -------------------------- */
-r.get('/journal', auth, only('admin', 'directeur'), needSchool, wrap(async (req, res) => {
+r.get('/journal', auth, only('admin', 'directeur', 'superadmin'), needSchool, wrap(async (req, res) => {
   const params = [req.u.schoolId];
   let sql = 'SELECT * FROM logs WHERE school_id = $1';
   if (req.query.entite) { params.push(req.query.entite); sql += ` AND entite = $${params.length}`; }
   res.json(await all(sql + ' ORDER BY created_at DESC LIMIT 300', params));
 }));
 
-r.get('/envois', auth, only('admin', 'directeur', 'comptable'), needSchool, wrap(async (req, res) => {
+r.get('/envois', auth, only('admin', 'directeur', 'comptable', 'superadmin'), needSchool, wrap(async (req, res) => {
   res.json(await all('SELECT * FROM envois WHERE school_id = $1 ORDER BY created_at DESC LIMIT 300', [req.u.schoolId]));
 }));
 

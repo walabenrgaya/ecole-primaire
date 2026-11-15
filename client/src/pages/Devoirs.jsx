@@ -18,7 +18,7 @@ export default function Devoirs() {
 
 function DevoirsEnseignant() {
   const { user } = useApp();
-  const canWrite = ['admin', 'enseignant', 'superadmin'].includes(user.role);
+  const canWrite = user.role === 'enseignant';
   const [depots, setDepots] = useState(null);
   const fields = [
     { key: 'titre', label: 'Titre', required: true, full: true },
@@ -124,7 +124,7 @@ function DevoirsFamille() {
                 {r?.statut === 'corrige' && <div className="mt"><Alert tone="success"><b>Note : {num(r.note, 1)} / {num(r.bareme)}</b>{r.commentaire_enseignant && ` – « ${r.commentaire_enseignant} »`}</Alert></div>}
                 {echu && (d.corrige || d.corrige_fichier) && <div className="mt"><Alert><FileCheck2 size={14} /> Corrigé : {d.corrige} {d.corrige_fichier && <a href={d.corrige_fichier} target="_blank" rel="noreferrer">Télécharger</a>}</Alert></div>}
                 <div className="row mt">
-                  {(user.role === 'eleve' || user.role === 'parent') && !echu && statut !== 'corrige' && <button className="btn primary sm" onClick={() => setDepot({ devoir: d, eleve: e, rendu: r })}><Upload size={14} />{r ? 'Remplacer mon dépôt' : 'Déposer le travail'}</button>}
+                  {user.role === 'eleve' && !echu && statut !== 'corrige' && <button className="btn primary sm" onClick={() => setDepot({ devoir: d, eleve: e, rendu: r })}><Upload size={14} />{r ? 'Remplacer mon dépôt' : 'Déposer le travail'}</button>}
                   {user.role === 'parent' && r && !r.vu_par_parent && <button className="btn sm" onClick={() => marquerVu(r)}><Eye size={14} />Marquer comme vu</button>}
                   {user.role === 'parent' && r?.vu_par_parent && <Badge tone="accent"><CheckCircle2 size={12} />Vu</Badge>}
                   {r?.fichier && <a className="small" href={r.fichier} target="_blank" rel="noreferrer"><Paperclip size={13} /> Mon dépôt ({dateTime(r.date_depot)})</a>}

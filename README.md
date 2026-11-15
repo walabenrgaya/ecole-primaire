@@ -14,7 +14,7 @@ Application web **multi-établissements** et **multi-utilisateurs** de gestion d
 ## Fonctionnalités
 
 - **SaaS multi-écoles** : console éditeur (création d'établissements, offres, suspension), données isolées par établissement, assistance en contexte d'une école.
-- **7 profils** : super-admin (éditeur), administrateur, directeur, enseignant, comptable, parent, élève – chacun avec ses droits (RBAC appliqué côté serveur en lecture *et* en écriture).
+- **7 profils** : super-admin (éditeur), administrateur, directeur, enseignant, comptable, parent, élève – chacun avec ses droits (RBAC appliqué côté serveur en lecture *et* en écriture). Les responsabilités sont vérifiées au niveau de la donnée (seul l'enseignant de la matière note, seul l'élève rend son devoir…) : voir [docs/REGLES_METIER.md](docs/REGLES_METIER.md).
 - **Scolarité** : dossiers élèves, pré-inscription en ligne avec affectation automatique, classes (contrôle des effectifs), matières (coefficients), salles, import/export CSV.
 - **Emploi du temps** avec détection des conflits (enseignant, salle, classe).
 - **Notes et bulletins** : saisie par trimestre, moyenne = 40 % contrôle continu + 60 % examen, moyenne générale pondérée, rang, bulletin PDF.

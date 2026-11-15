@@ -52,9 +52,10 @@ export const optionalAuth = (req, res, next) => {
   next();
 };
 
-// Restreint une route à certains rôles (le super-admin passe toujours)
+// Restreint une route à certains rôles. only() sans argument = console éditeur (super-admin) ;
+// sinon le super-admin doit être cité explicitement (lecture/assistance uniquement).
 export const only = (...roles) => (req, res, next) =>
-  (req.u?.role === 'superadmin' || roles.includes(req.u?.role))
+  (roles.length === 0 ? req.u?.role === 'superadmin' : roles.includes(req.u?.role))
     ? next()
     : res.status(403).json({ error: 'Accès refusé pour votre profil' });
 

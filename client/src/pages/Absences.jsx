@@ -9,8 +9,8 @@ const TONE = { 'Justifiée': 'success', 'Non justifiée': 'danger', 'En attente 
 
 export default function Absences() {
   const { user, toast } = useApp();
-  const canWrite = ['admin', 'enseignant', 'superadmin'].includes(user.role);
-  const peutValider = ['admin', 'enseignant', 'directeur', 'superadmin'].includes(user.role);
+  const canWrite = ['admin', 'enseignant'].includes(user.role);
+  const peutValider = ['admin', 'enseignant', 'directeur'].includes(user.role);
   const [tick, setTick] = useState(0);
   const [statut, setStatut] = useState('');
   const [justif, setJustif] = useState(null);

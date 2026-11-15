@@ -9,7 +9,7 @@ const label = c => `${c.niveau} ${c.section} (${c.effectif}/${c.cap})`;
 
 export default function Eleves() {
   const { user, toast, confirm } = useApp();
-  const canWrite = ['admin', 'comptable', 'superadmin'].includes(user.role);
+  const canWrite = ['admin', 'comptable'].includes(user.role);
   const [classe, setClasse] = useState('');
   const [statut, setStatut] = useState('inscrit');
   const [tick, setTick] = useState(0);

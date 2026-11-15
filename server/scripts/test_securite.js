@@ -125,13 +125,56 @@ const autreClasse = (await call(tok.admin, 'GET', '/classes')).data.find(c => !e
 const futur = '2027-01-26';
 const plan = await call(tok.enseignant, 'POST', '/evenements', { categorie: 'Contrôle', titre: 'Contrôle test', date: futur, debut: '15:45', fin: '16:30', classe_id: cours.classe_id, matiere_id: cours.matiere_id });
 check('l\'enseignant planifie un contrôle pour sa classe', plan.status === 201, JSON.stringify(plan.data));
-check('chevauchement refusé pour la même classe', (await call(tok.enseignant, 'POST', '/evenements', { categorie: 'Examen', titre: 'x', date: futur, debut: '16:00', fin: '17:00', classe_id: cours.classe_id, matiere_id: cours.matiere_id })).status === 409);
+check('chevauchement refusé pour la même classe', (await call(tok.enseignant, 'POST', '/evenements', { categorie: 'Devoir surveillé', titre: 'x', date: futur, debut: '16:00', fin: '17:00', classe_id: cours.classe_id, matiere_id: cours.matiere_id })).status === 409);
 check('évaluation pendant les vacances refusée', (await call(tok.enseignant, 'POST', '/evenements', { categorie: 'Contrôle', titre: 'x', date: '2026-12-23', classe_id: cours.classe_id, matiere_id: cours.matiere_id })).status === 409);
 if (autreClasse) check('évaluation dans une autre classe refusée', (await call(tok.enseignant, 'POST', '/evenements', { categorie: 'Contrôle', titre: 'x', date: futur, classe_id: autreClasse.id, matiere_id: cours.matiere_id })).status === 403);
 check('un enseignant ne publie pas d\'événement d\'établissement', (await call(tok.enseignant, 'POST', '/evenements', { categorie: 'Événement', titre: 'x', date: futur })).status === 403);
 const fete = await call(tok.directeur, 'POST', '/evenements', { categorie: 'Événement', titre: 'Sortie test', date: futur });
 check('la direction publie un événement pour tout l\'établissement', fete.status === 201 && fete.data.classe_id === null);
 for (const x of [plan.data, fete.data]) if (x?.id) await call(tok.admin, 'DELETE', `/evenements/${x.id}`);
+
+console.log('\n7. Responsabilités métier (qui fait quoi)');
+// Notes : seul l'enseignant de la matière, dans la classe de l'élève
+const elevesProf = (await call(tok.enseignant, 'GET', `/eleves?classe_id=${cours.classe_id}&statut=inscrit`)).data;
+const eleveCours = elevesProf[0];
+const matieres = (await call(tok.admin, 'GET', '/matieres')).data;
+const matiereNonEnseignee = matieres.find(m => !emploisProf.some(e => String(e.enseignant_id) === meId && e.classe_id === cours.classe_id && e.matiere_id === m.id));
+const noteBody = m => ({ eleve_id: eleveCours.id, matiere_id: m, eval: 'Contrôle continu', trimestre: 1, note: 12 });
+check('l\'administrateur ne peut pas attribuer de note', (await call(tok.admin, 'POST', '/notes', noteBody(cours.matiere_id))).status === 403);
+check('le directeur ne peut pas attribuer de note', (await call(tok.directeur, 'POST', '/notes', noteBody(cours.matiere_id))).status === 403);
+check('le super-admin (éditeur) ne peut pas attribuer de note', (await call(tok.super, 'POST', '/notes', noteBody(cours.matiere_id), { 'x-school-id': '1' })).status === 403);
+const noteOk = await call(tok.enseignant, 'POST', '/notes', noteBody(cours.matiere_id));
+check('l\'enseignant note dans sa matière', noteOk.status === 201, JSON.stringify(noteOk.data));
+if (matiereNonEnseignee) check('l\'enseignant ne note pas une matière qu\'il n\'enseigne pas', (await call(tok.enseignant, 'POST', '/notes', noteBody(matiereNonEnseignee.id))).status === 403);
+if (noteOk.data?.id) {
+  check('l\'enseignant modifie sa note', (await call(tok.enseignant, 'PUT', `/notes/${noteOk.data.id}`, { note: 13 })).status === 200);
+  check('l\'administrateur ne modifie pas la note', (await call(tok.admin, 'PUT', `/notes/${noteOk.data.id}`, { note: 20 })).status === 403);
+  await call(tok.enseignant, 'DELETE', `/notes/${noteOk.data.id}`);
+}
+const ancienne = (await call(tok.directeur, 'GET', `/notes?annee=2025-2026&eleve_id=${eleveCours.id}`)).data.find(n => n.matiere_id === cours.matiere_id);
+if (ancienne) check('les notes de l\'année précédente sont archivées', (await call(tok.enseignant, 'PUT', `/notes/${ancienne.id}`, { note: 20 })).status === 409);
+
+// Devoirs : publiés et corrigés par l'enseignant, rendus par l'élève uniquement
+check('l\'administrateur ne publie pas de devoir', (await call(tok.admin, 'POST', '/devoirs', { titre: 'x', matiere_id: cours.matiere_id, classe_id: cours.classe_id, date_remise: '2027-01-20' })).status === 403);
+if (matiereNonEnseignee) check('l\'enseignant ne donne pas de devoir hors de ses matières', (await call(tok.enseignant, 'POST', '/devoirs', { titre: 'x', matiere_id: matiereNonEnseignee.id, classe_id: cours.classe_id, date_remise: '2027-01-20' })).status === 403);
+const devoirEleve = (await call(tok.eleve, 'GET', '/devoirs')).data[0];
+check('le parent ne peut pas rendre le devoir à la place de l\'élève', (await call(tok.parent, 'POST', `/devoirs/${devoirEleve.id}/rendre`, { contenu: 'x', eleve_id: monEleve[0].id })).status === 403);
+const renduEleve = (await call(tok.admin, 'GET', '/devoirs_rendus')).data[0];
+if (renduEleve) check('l\'administrateur ne note pas un devoir rendu', (await call(tok.admin, 'PUT', `/devoirs_rendus/${renduEleve.id}/noter`, { note: 20 })).status === 403);
+check('l\'administrateur ne publie pas de corrigé', (await call(tok.admin, 'POST', `/devoirs/${devoirEleve.id}/corrige`, { corrige: 'x' })).status === 403);
+
+// Calendrier : contrôles par l'enseignant, examens par la direction
+check('l\'enseignant ne planifie pas d\'examen', (await call(tok.enseignant, 'POST', '/evenements', { categorie: 'Examen', titre: 'x', date: '2027-01-27', classe_id: cours.classe_id, matiere_id: cours.matiere_id })).status === 403);
+check('la direction ne planifie pas de contrôle à la place de l\'enseignant', (await call(tok.directeur, 'POST', '/evenements', { categorie: 'Contrôle', titre: 'x', date: '2027-01-27', classe_id: cours.classe_id, matiere_id: cours.matiere_id })).status === 403);
+const exam = await call(tok.directeur, 'POST', '/evenements', { categorie: 'Examen', titre: 'Examen test', date: '2027-01-27', debut: '14:00', fin: '15:30', classe_id: cours.classe_id, matiere_id: cours.matiere_id });
+check('la direction planifie un examen', exam.status === 201, JSON.stringify(exam.data));
+if (exam.data?.id) await call(tok.directeur, 'DELETE', `/evenements/${exam.data.id}`);
+
+// Absences : un enseignant ne statue que pour ses classes ; le super-admin ne modifie rien
+const absAutre = (await call(tok.admin, 'GET', '/absences?statut=En%20attente%20de%20validation')).data.find(a => !elevesProf.some(e => e.id === a.eleve_id));
+if (absAutre) check('l\'enseignant ne valide pas l\'absence d\'un élève d\'une autre classe', (await call(tok.enseignant, 'POST', `/absences/${absAutre.id}/valider`, { validee: true })).status === 403);
+check('le super-admin ne peut pas encaisser de paiement', (await call(tok.super, 'POST', '/paiements', { eleve_id: elevesA[0].id, montant: 10, mode: 'Espèces' }, { 'x-school-id': '1' })).status === 403);
+check('le super-admin consulte le journal (assistance)', (await call(tok.super, 'GET', '/journal', null, { 'x-school-id': '1' })).status === 200);
 
 console.log(`\nRésultat : ${ok} réussi(s), ${ko} échec(s)`);
 process.exit(ko ? 1 : 0);

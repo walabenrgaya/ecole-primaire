@@ -73,7 +73,7 @@ export const ENTITIES = {
     annee: true,
     cols: ['eleve_id', 'matiere_id', 'eval', 'trimestre', 'note', 'commentaire'],
     required: ['eleve_id', 'matiere_id', 'eval', 'trimestre', 'note'],
-    write: ['admin', 'enseignant'],
+    write: ['enseignant'], // seul l'enseignant de la matière note ses élèves
     refs: { eleve_id: 'eleves', matiere_id: 'matieres' },
     select: `SELECT t.*, ${ELEVE_LABEL} AS eleve_nom, (SELECT m.nom FROM matieres m WHERE m.id = t.matiere_id) AS matiere_nom,
       (SELECT e.classe_id FROM eleves e WHERE e.id = t.eleve_id) AS classe_id FROM notes t`,
@@ -135,7 +135,7 @@ export const ENTITIES = {
     annee: true,
     cols: ['titre', 'desc_devoir', 'matiere_id', 'classe_id', 'enseignant_id', 'date_assignation', 'date_remise', 'bareme', 'piece_jointe', 'corrige', 'corrige_fichier'],
     required: ['titre', 'matiere_id', 'classe_id', 'date_remise'],
-    write: ['admin', 'enseignant'],
+    write: ['enseignant'], // le devoir appartient à l'enseignant qui le donne
     refs: { matiere_id: 'matieres', classe_id: 'classes', enseignant_id: 'users' },
     select: `SELECT t.*, ${CLASSE_LABEL} AS classe_nom, (SELECT m.nom FROM matieres m WHERE m.id = t.matiere_id) AS matiere_nom,
       (SELECT u.nom FROM users u WHERE u.id = t.enseignant_id) AS enseignant_nom,
@@ -221,33 +221,86 @@ async function checkRefs(cfg, data, schoolId) {
   }
 }
 
-// Vérifie qu'un enseignant n'agit que sur ses classes / ses devoirs
-async function checkTeacher(table, u, data, existing) {
-  if (u.role !== 'enseignant') return;
-  const classes = await teacherClassIds(u, existing?.annee_scolaire || AN);
+/**
+ * L'enseignant enseigne-t-il cette matière dans cette classe ?
+ * (créneau à l'emploi du temps, ou référent de la matière intervenant dans la classe)
+ */
+export async function enseigne(u, classeId, matiereId, annee = AN) {
+  if (!classeId || !matiereId) return false;
+  const r = await one(
+    `SELECT 1 AS ok FROM emplois WHERE enseignant_id = $1 AND classe_id = $2 AND matiere_id = $3 AND annee_scolaire = $4 AND deleted = FALSE
+     UNION
+     SELECT 1 FROM matieres m WHERE m.id = $3 AND m.enseignant_id = $1
+       AND EXISTS (SELECT 1 FROM emplois e WHERE e.enseignant_id = $1 AND e.classe_id = $2 AND e.annee_scolaire = $4 AND e.deleted = FALSE)
+     LIMIT 1`, [+u.id, +classeId, +matiereId, annee]);
+  return !!r;
+}
+
+// Répartition des évaluations au calendrier : l'enseignant organise ses contrôles,
+// la direction organise les examens, les oraux de synthèse, les événements et les vacances.
+export const EVALUATIONS = ['Contrôle', 'Devoir surveillé', 'Examen', 'Oral de synthèse'];
+export const CATEGORIES_ENSEIGNANT = ['Contrôle', 'Devoir surveillé'];
+export const CATEGORIES_DIRECTION = ['Examen', 'Oral de synthèse', 'Événement', 'Vacances'];
+
+/**
+ * Règles de responsabilité métier (au-delà du rôle) appliquées à chaque écriture.
+ * action : 'create' | 'update' | 'delete'
+ */
+async function checkResponsabilites(table, u, data, existing, action) {
   const classeOfEleve = async id => (await one('SELECT classe_id FROM eleves WHERE id = $1', [id]))?.classe_id;
-  if (table === 'notes' || table === 'absences') {
+
+  if (table === 'notes') {
+    // Les notes d'une année clôturée sont archivées
+    if (existing && existing.annee_scolaire !== AN) fail(409, `Les notes de l'année ${existing.annee_scolaire} sont archivées et ne peuvent plus être modifiées`);
+    // Seul l'enseignant de la matière, dans la classe de l'élève, attribue ou modifie une note
+    const eleveId = data.eleve_id ?? existing?.eleve_id;
+    const matiereId = data.matiere_id ?? existing?.matiere_id;
+    for (const eid of [existing?.eleve_id, data.eleve_id].filter(Boolean)) {
+      if (!(await enseigne(u, await classeOfEleve(eid), matiereId))) {
+        fail(403, 'Seul l\'enseignant de cette matière dans la classe de l\'élève peut attribuer ou modifier cette note');
+      }
+    }
+    if (!eleveId) fail(400, 'Élève obligatoire');
+  }
+
+  if (table === 'absences' && u.role === 'enseignant') {
+    const classes = await teacherClassIds(u, AN);
     for (const eid of [existing?.eleve_id, data.eleve_id].filter(Boolean)) {
       if (!classes.includes(await classeOfEleve(eid))) fail(403, 'Cet élève n\'appartient pas à vos classes');
     }
   }
+
   if (table === 'devoirs') {
-    if (existing && +existing.enseignant_id !== +u.id) fail(403, 'Vous ne pouvez modifier que vos propres devoirs');
-    if (data.classe_id && !classes.includes(+data.classe_id)) fail(403, 'Cette classe ne fait pas partie de vos classes');
-    data.enseignant_id = +u.id;
+    // Un devoir est publié, modifié et supprimé par l'enseignant qui l'a donné, dans sa matière
+    if (existing && +existing.enseignant_id !== +u.id) fail(403, 'Seul l\'enseignant qui a donné ce devoir peut le modifier ou le supprimer');
+    if (action !== 'delete') {
+      const classe = data.classe_id ?? existing?.classe_id;
+      const matiere = data.matiere_id ?? existing?.matiere_id;
+      if (!(await enseigne(u, classe, matiere))) fail(403, 'Vous ne pouvez donner des devoirs que dans les matières que vous enseignez à cette classe');
+      data.enseignant_id = +u.id;
+    }
   }
+
   if (table === 'evenements') {
-    // Un enseignant planifie uniquement des évaluations, pour ses classes, et ne modifie que les siennes
-    if (existing && +existing.enseignant_id !== +u.id) fail(403, 'Vous ne pouvez modifier que les évaluations que vous avez planifiées');
     const categorie = data.categorie ?? existing?.categorie;
-    if (!EVALUATIONS.includes(categorie)) fail(403, 'Seule la direction peut publier des événements ou des vacances');
-    const classe = data.classe_id ?? existing?.classe_id;
-    if (!classes.includes(+classe)) fail(403, 'Cette classe ne fait pas partie de vos classes');
-    data.enseignant_id = +u.id;
+    const direction = ['admin', 'directeur'].includes(u.role);
+    if (u.role === 'enseignant') {
+      if (existing && +existing.enseignant_id !== +u.id) fail(403, 'Vous ne pouvez modifier que les évaluations que vous avez planifiées');
+      if (!CATEGORIES_ENSEIGNANT.includes(categorie)) {
+        fail(403, 'Les examens, oraux de synthèse, événements et vacances sont organisés par la direction');
+      }
+      if (action !== 'delete') {
+        if (!(await enseigne(u, data.classe_id ?? existing?.classe_id, data.matiere_id ?? existing?.matiere_id))) {
+          fail(403, 'Vous ne pouvez planifier des évaluations que dans les matières que vous enseignez à cette classe');
+        }
+        data.enseignant_id = +u.id;
+      }
+    } else if (direction && action !== 'delete' && !CATEGORIES_DIRECTION.includes(categorie)) {
+      // La direction peut retirer un contrôle (modération) mais ne le planifie pas à la place de l'enseignant
+      fail(403, 'Les contrôles et devoirs surveillés sont planifiés par l\'enseignant de la matière');
+    }
   }
 }
-
-export const EVALUATIONS = ['Contrôle', 'Devoir surveillé', 'Examen', 'Oral de synthèse'];
 const MAX_EVALUATIONS_PAR_JOUR = 2;
 
 /**
@@ -366,7 +419,7 @@ export function crudRouter() {
     if (!cfg) fail(404, 'Ressource inconnue');
     return cfg;
   };
-  const canWrite = (cfg, u) => u.role === 'superadmin' || cfg.write.includes(u.role);
+  const canWrite = (cfg, u) => cfg.write.includes(u.role);
 
   r.get('/:entity', wrap(async (req, res) => {
     const table = req.params.entity;
@@ -395,7 +448,7 @@ export function crudRouter() {
     const data = pickColumns(cfg, req.body);
     for (const f of cfg.required || []) if (data[f] == null) fail(400, `Champ obligatoire manquant : ${f}`);
     await checkRefs(cfg, data, req.u.schoolId);
-    await checkTeacher(table, req.u, data, null);
+    await checkResponsabilites(table, req.u, data, null, 'create');
     if (cfg.annee) data.annee_scolaire = AN;
     await beforeWrite(table, req.u, data, null, req.u.schoolId);
     if (table === 'annonces') { data.auteur_id = +req.u.id; data.auteur_nom = req.u.nom; }
@@ -422,7 +475,7 @@ export function crudRouter() {
     const data = pickColumns(cfg, req.body);
     if (!Object.keys(data).length) fail(400, 'Aucune donnée à modifier');
     await checkRefs(cfg, data, req.u.schoolId);
-    await checkTeacher(table, req.u, data, existing);
+    await checkResponsabilites(table, req.u, data, existing, 'update');
     await beforeWrite(table, req.u, data, existing, req.u.schoolId);
     const cols = Object.keys(data);
     const { rows } = await pool.query(
@@ -443,7 +496,7 @@ export function crudRouter() {
     const id = toId(req.params.id);
     const existing = id && await one(`SELECT * FROM ${table} WHERE id = $1 AND school_id = $2 AND deleted = FALSE`, [id, req.u.schoolId]);
     if (!existing) fail(404, 'Élément introuvable dans votre établissement');
-    await checkTeacher(table, req.u, {}, existing);
+    await checkResponsabilites(table, req.u, {}, existing, 'delete');
 
     const force = req.query.force === 'true';
     const blocages = [];
